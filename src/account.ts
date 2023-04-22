@@ -1,4 +1,6 @@
-import { Ed25519Keypair } from '@mysten/sui.js';
+import { Ed25519Keypair, type Keypair } from '@mysten/sui.js';
+import { generateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 
 export declare module Account {
   export interface DerivePathParams {
@@ -9,7 +11,14 @@ export declare module Account {
 }
 
 export class Account {
-  public getKeypairFromMnemonics(mnemonics: string, path: Account.DerivePathParams = {}) {
+  public generateMnemonic(numberOfWords: 12 | 24 = 24): string {
+    return generateMnemonic(wordlist, numberOfWords === 12 ? 128 : 256);
+  }
+
+  public getKeypairFromMnemonics(
+    mnemonics: string,
+    path: Account.DerivePathParams = {},
+  ): Keypair {
     const derivePath = this.getDerivePath(path);
     return Ed25519Keypair.deriveKeypair(mnemonics, derivePath);
   }
