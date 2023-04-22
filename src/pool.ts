@@ -1,8 +1,6 @@
 import {
-  RawSigner,
   TransactionBlock,
   JsonRpcProvider,
-  Keypair,
   SuiAddress,
   SuiTransactionBlockResponse,
   TransactionArgument,
@@ -15,8 +13,8 @@ import { CoinSymbol, Network, coinType, contractFees, contracts } from './consta
 import BigNumber from 'bignumber.js';
 import { Fee } from './fee';
 
-const decimal = 9;
 const ONE_MINUTE = 60 * 1000;
+const GAS_OVERHEAD_PER_COIN = 10n;
 
 export interface PoolCoin {
   symbol: CoinSymbol;
@@ -52,18 +50,26 @@ export class Pool {
   }
 
   async createPool(options: {
-    keypair: Keypair;
+    address: SuiAddress;
     fee: Fee;
     coins: [PoolCoin, PoolCoin];
     minTick: number;
     maxTick: number;
     currentPrice: number;
     slippage: BigNumber | number | string;
+    signAndExecute: (txb: TransactionBlock) => Promise<SuiTransactionBlockResponse>;
   }): Promise<SuiTransactionBlockResponse> {
-    const { coins, keypair, fee, minTick, maxTick, slippage, currentPrice } = options;
-    const signer = new RawSigner(keypair, this.provider);
+    const {
+      coins,
+      fee,
+      address,
+      minTick,
+      maxTick,
+      slippage,
+      currentPrice,
+      signAndExecute,
+    } = options;
     const contract = contracts[this.network];
-    const address = keypair.getPublicKey().toSuiAddress();
     // From small to big
     coins.sort((a, b) => (a.symbol < b.symbol ? -1 : 1));
     const coinA = coins[0];
@@ -73,11 +79,11 @@ export class Pool {
     const amountA = this.scaleAmount(coinA.amount);
     const amountB = this.scaleAmount(coinB.amount);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.getCoinsIds(address, coinTypeA, amountA),
-      this.getCoinsIds(address, coinTypeB, amountB),
+      this.selectCoinsIds(address, coinTypeA, amountA),
+      this.selectCoinsIds(address, coinTypeB, amountB),
     ]);
-    const txb = new TransactionBlock();
 
+    const txb = new TransactionBlock();
     txb.moveCall({
       target: `${contract.packageId}::pool_factory::deploy_pool_and_mint`,
       typeArguments: [coinA.symbol, coinB.symbol, fee.type],
@@ -107,8 +113,8 @@ export class Pool {
         txb.pure(amountA.toString(), 'u128'),
         txb.pure(amountB.toString(), 'u128'),
         // amount_min
-        txb.pure(this.getMinAmount(amountA, fee.fee, slippage), 'u64'),
-        txb.pure(this.getMinAmount(amountB, fee.fee, slippage), 'u64'),
+        txb.pure(this.getMinimumAmount(amountA, fee.fee, slippage), 'u64'),
+        txb.pure(this.getMinimumAmount(amountB, fee.fee, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -118,13 +124,56 @@ export class Pool {
       ],
     });
 
-    return signer.signAndExecuteTransactionBlock({
-      transactionBlock: txb,
-      options: { showEffects: true },
-    });
+    const gas = await this.calculateGas(
+      txb,
+      address,
+      this.isSUI(coinTypeA) ? amountA : this.isSUI(coinTypeB) ? amountB : undefined,
+    );
+    txb.setGasBudget(gas);
+
+    return signAndExecute(txb);
   }
 
-  protected getMinAmount(
+  protected async calculateGas(
+    tx: TransactionBlock,
+    address: SuiAddress,
+    amount?: BigNumber,
+  ): Promise<bigint> {
+    const { totalBalance } = await this.provider.getBalance({
+      owner: address,
+      coinType: coinType.SUI[this.network],
+    });
+    const remaining = amount
+      ? BigNumber(totalBalance).minus(amount).toString()
+      : totalBalance;
+
+    const txb = new TransactionBlock(tx);
+    txb.setSenderIfNotSet(address);
+    txb.setGasBudget(BigInt(remaining));
+    const { effects, input } = await this.provider.dryRunTransactionBlock({
+      transactionBlock: await txb.build({
+        provider: this.provider,
+        onlyTransactionKind: false,
+      }),
+    });
+
+    if (effects.status.status !== 'success') {
+      throw new Error(
+        `Could not automatically determine a gas budget: ${effects.status.error}`,
+      );
+    }
+
+    const gasPrice = await this.provider.getReferenceGasPrice();
+    return (
+      BigInt(effects.gasUsed.computationCost) +
+      BigInt(effects.gasUsed.storageCost) +
+      GAS_OVERHEAD_PER_COIN *
+        BigInt(input?.gasData.payment?.length || 0n) *
+        BigInt(gasPrice || 1n)
+    );
+  }
+
+  protected getMinimumAmount(
     value: BigNumber | number | string,
     fee: BigNumber | number | string,
     slippage: BigNumber | number | string,
@@ -135,10 +184,10 @@ export class Pool {
   }
 
   protected scaleAmount(amount: number) {
-    return BigNumber(amount).multipliedBy(10 ** decimal);
+    return BigNumber(amount).multipliedBy(10 ** 9);
   }
 
-  protected async getCoinsIds(
+  protected async selectCoinsIds(
     owner: SuiAddress,
     coinType: string,
     needAmount: BigNumber,
@@ -164,13 +213,16 @@ export class Pool {
 
   protected stripGas(
     txb: TransactionBlock,
-    vec: string[],
+    coinIds: string[],
     coinType: string,
     amount: BigNumber,
   ): TransactionArgument[] {
-    const isSUI = coinType.toLowerCase().indexOf('sui') > -1;
-    return isSUI
+    return this.isSUI(coinType)
       ? txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())]).slice(0, 1)
-      : vec.map((id) => txb.object(id));
+      : coinIds.map((id) => txb.object(id));
+  }
+
+  protected isSUI(coinType: string) {
+    return coinType.toLowerCase().indexOf('sui') > -1;
   }
 }
