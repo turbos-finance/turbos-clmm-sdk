@@ -1,0 +1,71 @@
+name: Lint
+
+on: [pull_request, push]
+
+jobs:
+  git-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'pnpm'
+          node-version-file: 'package.json'
+      - run: pnpm install
+      - name: Pull Request
+        if: github.event_name == 'pull_request'
+        run: npx --no-install commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      - name: Push
+        if: github.event_name == 'push'
+        run: echo "${{ github.event.head_commit.message }}" | npx --no-install commitlint --verbose
+  type-checking:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-dts: [16.x, 18.x, 20.x]
+        ts: [5.0.x]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'pnpm'
+          node-version-file: 'package.json'
+      - name: Use Typescript@${{ matrix.ts }} & @types/node@${{ matrix.node-dts }}
+        run: |
+          pnpm install
+          pnpm install @types/node@${{ matrix.node-dts }} typescript@${{ matrix.ts }} -w
+      - run: pnpm exec tsc
+  code-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'pnpm'
+          node-version-file: 'package.json'
+      - run: pnpm install
+      - run: npx --no-install prettier --cache --check .
+  bundle:
+    if: "!contains(toJson(github.event.commits), '[skip ci]')"
+    needs: [git-commit, type-checking, code-format]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['16.14.0', 16.x, 18.x, 20.x]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'pnpm'
+          node-version-file: 'package.json'
+      - run: pnpm install
+      - run: pnpm build

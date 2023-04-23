@@ -1,0 +1,22 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    if: "!contains(toJson(github.event.commits), '[skip ci]')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['16.14.0', 16.x, 18.x, 20.x]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v3
+        with:
+          cache: 'pnpm'
+          node-version: ${{ matrix.node }}
+      - run: pnpm install
+      - run: pnpm test
