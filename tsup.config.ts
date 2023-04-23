@@ -11,4 +11,5 @@ export default defineConfig({
   target: 'node16',
   shims: false,
   dts: true,
+  legacyOutput: true,
 });

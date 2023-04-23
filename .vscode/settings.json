@@ -8,5 +8,6 @@
   "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.quoteStyle": "single",
-  "typescript.suggest.autoImports": true
+  "typescript.suggest.autoImports": true,
+  "cSpell.ignoreWords": ["keypair"]
 }
