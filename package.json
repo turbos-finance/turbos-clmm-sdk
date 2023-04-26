@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "Turbos finance sdk",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "vitest",
     "build": "tsup",
@@ -31,19 +32,21 @@
     "CHANGELOG.md"
   ],
   "volta": {
-    "node": "16.14.0",
+    "node": "18.16.0",
     "pnpm": "8.2.0"
   },
   "packageManager": "pnpm@8.2.0",
   "engines": {
-    "node": ">=16.14.0"
+    "node": ">=18.0.0"
   },
   "peerDependencies": {
     "@mysten/sui.js": "^0.32.1"
   },
   "dependencies": {
     "@scure/bip39": "^1.2.0",
-    "bignumber.js": "^9.1.1"
+    "@types/bn.js": "^5.1.1",
+    "bn.js": "^5.2.1",
+    "decimal.js": "^10.4.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.6.1",

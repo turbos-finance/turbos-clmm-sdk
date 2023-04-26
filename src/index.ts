@@ -1,3 +1,3 @@
 export * from './sdk';
 export * from './constants';
-export * from './fee';
+export { CreatePoolOptions, Fee } from './lib';

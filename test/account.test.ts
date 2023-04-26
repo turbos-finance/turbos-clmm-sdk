@@ -1,5 +1,5 @@
 import { Ed25519Keypair } from '@mysten/sui.js';
-import { Account } from '../src/account';
+import { Account } from '../src/lib/account';
 
 const account = new Account();
 

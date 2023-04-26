@@ -32,5 +32,10 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true
   },
+  "ts-node": {
+    "esm": true,
+    "transpileOnly": true,
+    "experimentalSpecifierResolution": "node"
+  },
   "exclude": ["packages/**/dist"]
 }
