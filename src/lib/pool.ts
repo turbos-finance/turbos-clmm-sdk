@@ -9,35 +9,56 @@ import {
   getObjectFields,
   getObjectType,
 } from '@mysten/sui.js';
-import { Fee } from './fee';
 import Decimal from 'decimal.js';
 import { MathUtil } from './math';
-import { Contract } from './contract';
+import { Contract, Fee } from './contract';
 
 const ONE_MINUTE = 60 * 1000;
 
-export interface CreatePoolOptions {
+export interface PoolMint {
   address: SuiAddress;
-  fee: Fee;
-  coins: [
-    a: { coinType: string; amount: number | string },
-    b: { coinType: string; amount: number | string },
-  ];
-  minPrice: number | string | Decimal;
-  maxPrice: number | string | Decimal;
-  currentPrice: number | string | Decimal;
-  slippage: number | string | Decimal;
-  signAndExecute: (txb: TransactionBlock) => Promise<SuiTransactionBlockResponse>;
-}
-
-export interface AddLiquidityOptions {
-  address: SuiAddress;
-  pool: string;
   amount: [a: number | string, b: number | string];
   minPrice: number | string | Decimal;
   maxPrice: number | string | Decimal;
   slippage: number | string | Decimal;
-  signAndExecute: (txb: TransactionBlock) => Promise<SuiTransactionBlockResponse>;
+  /**
+   * Execute transaction by signer
+   * ```typescript
+   * import { RawSigner } from '@mysten/sui.js';
+   * {
+   *   signAndExecute(txb, provider) {
+   *     const mnemonic = sdk.account.generateMnemonic(); // OR from your own
+   *     const keypair = sdk.account.getKeypairFromMnemonics(mnemonic);
+   *     const signer = new RawSigner(keypair, provider);
+   *     return signer.signAndExecuteTransactionBlock(txb);
+   *   },
+   * }
+   * ```
+   * @see RawSigner
+   */
+  signAndExecute: (
+    txb: TransactionBlock,
+    provider: JsonRpcProvider,
+  ) => Promise<SuiTransactionBlockResponse>;
+}
+
+export interface CreatePoolOptions extends PoolMint {
+  /**
+   * Fee object from `sdk.contract.getFees()`
+   */
+  fee: Fee;
+  /**
+   * Coin type such as `0x2::sui::SUI`
+   */
+  coins: [a: string, b: string];
+  currentPrice: number | string | Decimal;
+}
+
+export interface AddLiquidityOptions extends PoolMint {
+  /**
+   * Pool ID
+   */
+  pool: string;
 }
 
 export class Pool {
@@ -49,7 +70,6 @@ export class Pool {
 
   async createPool(options: CreatePoolOptions): Promise<SuiTransactionBlockResponse> {
     const {
-      coins,
       fee,
       address,
       minPrice,
@@ -57,12 +77,12 @@ export class Pool {
       currentPrice,
       slippage,
       signAndExecute,
+      amount,
+      coins,
     } = options;
     const contract = this.contract.contract;
-    const [
-      { coinType: coinTypeA, amount: amountA },
-      { coinType: coinTypeB, amount: amountB },
-    ] = coins;
+    const [coinTypeA, coinTypeB] = coins;
+    const [amountA, amountB] = amount;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
@@ -130,7 +150,7 @@ export class Pool {
       ],
     });
 
-    return signAndExecute(txb);
+    return signAndExecute(txb, this.provider);
   }
 
   async addLiquidity(options: AddLiquidityOptions): Promise<SuiTransactionBlockResponse> {
@@ -211,7 +231,7 @@ export class Pool {
       ],
     });
 
-    return signAndExecute(txb);
+    return signAndExecute(txb, this.provider);
   }
 
   protected getMinimumAmount(

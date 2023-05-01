@@ -5,7 +5,12 @@ import {
   JsonRpcProvider,
 } from '@mysten/sui.js';
 import { Network, contractFees, contracts } from '../constants';
-import { Fee } from './fee';
+
+export interface Fee {
+  fee: number;
+  objectId: string;
+  type: string;
+}
 
 export class Contract {
   constructor(
@@ -34,7 +39,7 @@ export class Contract {
       if (matched) {
         type = matched.split(/\s*,\s*/, 1).pop()!;
       }
-      return new Fee(Number(fee), objectId, type);
+      return { fee: Number(fee), objectId, type };
     });
     return this._fees;
   }
