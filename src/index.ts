@@ -1,3 +1,3 @@
 export * from './sdk';
 export * from './constants';
-export { CreatePoolOptions, Fee } from './lib';
+export { CreatePoolOptions, Fee, AddLiquidityOptions, PoolFields } from './lib';
