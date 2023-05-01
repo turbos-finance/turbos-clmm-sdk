@@ -15,7 +15,6 @@ import { MathUtil } from './math';
 import { Contract } from './contract';
 
 const ONE_MINUTE = 60 * 1000;
-const GAS_OVERHEAD_PER_COIN = 10n;
 
 export interface CreatePoolOptions {
   address: SuiAddress;
@@ -131,13 +130,6 @@ export class Pool {
       ],
     });
 
-    const gas = await this.calculateGas(
-      txb,
-      address,
-      this.isSUI(coinTypeA) ? bigAmountA : this.isSUI(coinTypeB) ? bigAmountB : undefined,
-    );
-    txb.setGasBudget(gas);
-
     return signAndExecute(txb);
   }
 
@@ -220,45 +212,6 @@ export class Pool {
     });
 
     return signAndExecute(txb);
-  }
-
-  protected async calculateGas(
-    tx: TransactionBlock,
-    address: SuiAddress,
-    amount?: Decimal,
-  ): Promise<bigint> {
-    const { totalBalance } = await this.provider.getBalance({
-      owner: address,
-      coinType: '0x2::sui::SUI',
-    });
-    const remaining = amount
-      ? new Decimal(totalBalance).minus(amount).toString()
-      : totalBalance;
-
-    const txb = new TransactionBlock(tx);
-    txb.setSenderIfNotSet(address);
-    txb.setGasBudget(BigInt(remaining));
-    const { effects, input } = await this.provider.dryRunTransactionBlock({
-      transactionBlock: await txb.build({
-        provider: this.provider,
-        onlyTransactionKind: false,
-      }),
-    });
-
-    if (effects.status.status !== 'success') {
-      throw new Error(
-        `Could not automatically determine a gas budget: ${effects.status.error}`,
-      );
-    }
-
-    const gasPrice = await this.provider.getReferenceGasPrice();
-    return (
-      BigInt(effects.gasUsed.computationCost) +
-      BigInt(effects.gasUsed.storageCost) +
-      GAS_OVERHEAD_PER_COIN *
-        BigInt(input?.gasData.payment?.length || 0n) *
-        BigInt(gasPrice || 1n)
-    );
   }
 
   protected getMinimumAmount(
