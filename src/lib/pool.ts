@@ -247,7 +247,7 @@ export class Pool {
   protected async selectCoinIds(
     owner: SuiAddress,
     coinType: string,
-    needAmount: Decimal,
+    expectedAmount: Decimal,
   ) {
     const coins: PaginatedCoins['data'][number][] = [];
     const coinIds: string[] = [];
@@ -271,7 +271,7 @@ export class Pool {
     for (const coin of coins) {
       coinIds.push(coin.coinObjectId);
       totalAmount = totalAmount.add(coin.balance);
-      if (totalAmount.gte(needAmount)) {
+      if (totalAmount.gte(expectedAmount)) {
         break;
       }
     }
