@@ -145,7 +145,7 @@ export class Pool {
         txb.object(address),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE, '128'),
-        // ctx
+        // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -226,7 +226,7 @@ export class Pool {
         txb.object(address),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE, '128'),
-        // ctx
+        // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
