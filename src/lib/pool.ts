@@ -75,7 +75,7 @@ export declare module Pool {
     nft: string;
   }
 
-  export interface RemoveLiquidityOptions extends MintParams {
+  export interface DecreaseLiquidityOptions extends MintParams {
     /**
      * NFT ID
      */
@@ -346,8 +346,8 @@ export class Pool extends Base {
     return signAndExecute(txb, this.provider);
   }
 
-  async removeLiquidity(
-    options: Pool.RemoveLiquidityOptions,
+  async decreaseLiquidity(
+    options: Pool.DecreaseLiquidityOptions,
   ): Promise<SuiTransactionBlockResponse> {
     const {
       amount: [amountA, amountB],
