@@ -20,6 +20,9 @@ export declare module Pool {
     amount: [a: number | string, b: number | string];
     minPrice: number | string | Decimal;
     maxPrice: number | string | Decimal;
+    /**
+     * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
+     */
     slippage: number | string | Decimal;
     /**
      * Execute transaction by signer

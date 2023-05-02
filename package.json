@@ -1,5 +1,5 @@
 {
-  "name": "turbos-sdk",
+  "name": "turbos-clmm-sdk",
   "version": "0.0.0",
   "description": "Turbos finance sdk",
   "main": "index.js",
