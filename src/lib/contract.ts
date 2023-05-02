@@ -1,10 +1,6 @@
-import {
-  getObjectFields,
-  getObjectId,
-  getMoveObjectType,
-  JsonRpcProvider,
-} from '@mysten/sui.js';
-import { Network, contractFees, contracts } from '../constants';
+import { getObjectFields, getObjectId, getMoveObjectType } from '@mysten/sui.js';
+import { contractFees, contracts } from '../constants';
+import { Base } from './base';
 
 export declare module Contract {
   export interface Fee {
@@ -14,13 +10,8 @@ export declare module Contract {
   }
 }
 
-export class Contract {
-  constructor(
-    protected readonly provider: JsonRpcProvider,
-    protected readonly network: Network,
-  ) {}
-
-  get contract() {
+export class Contract extends Base {
+  get config() {
     return contracts[this.network];
   }
 

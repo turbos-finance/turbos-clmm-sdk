@@ -7,12 +7,11 @@ import {
   SUI_CLOCK_OBJECT_ID,
   PaginatedCoins,
   getObjectType,
-  getObjectFields,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
-import { MathUtil } from './math';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
+import { Base } from './base';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -112,13 +111,7 @@ export declare module Pool {
   }
 }
 
-export class Pool {
-  constructor(
-    protected readonly provider: JsonRpcProvider,
-    protected readonly contract: Contract,
-    protected readonly math: MathUtil,
-  ) {}
-
+export class Pool extends Base {
   async createPool(
     options: Pool.CreatePoolOptions,
   ): Promise<SuiTransactionBlockResponse> {
@@ -133,7 +126,7 @@ export class Pool {
       amount,
       coins,
     } = options;
-    const contract = this.contract.contract;
+    const contract = this.contract.config;
     const [coinTypeA, coinTypeB] = coins;
     const [amountA, amountB] = amount;
     const [coinA, coinB] = await Promise.all([
@@ -218,7 +211,7 @@ export class Pool {
       signAndExecute,
       pool,
     } = options;
-    const contract = this.contract.contract;
+    const contract = this.contract.config;
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
     const coinTypeA = typeArguments[0];
@@ -295,11 +288,10 @@ export class Pool {
       nft,
       signAndExecute,
     } = options;
-
-    const contract = this.contract.contract;
-    const [pool, liquidity] = await Promise.all([
-      this.getPoolIdByNFT(nft),
-      this.getNFTLiquidity(nft),
+    const contract = this.contract.config;
+    const [{ pool_id: pool }, { liquidity }] = await Promise.all([
+      this.nft.getFields(nft),
+      this.nft.getPositionFields(nft),
     ]);
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
@@ -334,7 +326,6 @@ export class Pool {
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
-
     return signAndExecute(txb, this.provider);
   }
 
@@ -406,25 +397,6 @@ export class Pool {
     });
     validateObjectResponse(poolObject, 'pool');
     return poolObject;
-  }
-
-  protected async getPoolIdByNFT(nftId: string): Promise<string> {
-    const nftObject = await this.provider.getObject({
-      id: nftId,
-      options: { showContent: true },
-    });
-    validateObjectResponse(nftObject, 'nft');
-    const fields = getObjectFields(nftObject) as { pool_id: string };
-    return fields.pool_id;
-  }
-
-  protected async getNFTLiquidity(nftId: string): Promise<string> {
-    const result = await this.provider.getDynamicFieldObject({
-      parentId: this.contract.contract.positions,
-      name: { type: 'address', value: nftId },
-    });
-    const fields = getObjectFields(result) as { liquidity: string };
-    return fields.liquidity;
   }
 
   protected getPoolTypeArguments(type: string): [string, string, string] {
