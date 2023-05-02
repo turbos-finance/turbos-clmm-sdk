@@ -7,19 +7,18 @@ import {
   SUI_CLOCK_OBJECT_ID,
   PaginatedCoins,
   getObjectType,
+  getObjectFields,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { MathUtil } from './math';
 import { Contract } from './contract';
+import { validateObjectResponse } from '../utils/validate-object-response';
 
 const ONE_MINUTE = 60 * 1000;
 
 export declare module Pool {
-  export interface BasePoolMintOptions {
-    address: SuiAddress;
+  export interface MintParams {
     amount: [a: number | string, b: number | string];
-    minPrice: number | string | Decimal;
-    maxPrice: number | string | Decimal;
     /**
      * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
      */
@@ -45,7 +44,13 @@ export declare module Pool {
     ) => Promise<SuiTransactionBlockResponse>;
   }
 
-  export interface CreatePoolOptions extends BasePoolMintOptions {
+  export interface LiquidityParams {
+    address: SuiAddress;
+    minPrice: number | string | Decimal;
+    maxPrice: number | string | Decimal;
+  }
+
+  export interface CreatePoolOptions extends MintParams, LiquidityParams {
     /**
      * Fee object from `sdk.contract.getFees()`
      */
@@ -57,11 +62,18 @@ export declare module Pool {
     currentPrice: number | string | Decimal;
   }
 
-  export interface AddLiquidityOptions extends BasePoolMintOptions {
+  export interface AddLiquidityOptions extends MintParams, LiquidityParams {
     /**
      * Pool ID
      */
     pool: string;
+  }
+
+  export interface RemoveLiquidityOptions extends MintParams {
+    /**
+     * NFT ID
+     */
+    nft: string;
   }
 
   /**
@@ -207,10 +219,7 @@ export class Pool {
       pool,
     } = options;
     const contract = this.contract.contract;
-    const poolObject = await this.provider.getObject({
-      id: pool,
-      options: { showType: true },
-    });
+    const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
     const coinTypeA = typeArguments[0];
     const coinTypeB = typeArguments[1];
@@ -262,12 +271,65 @@ export class Pool {
         // amount_desired
         txb.pure(bigAmountA.toString(), 'u128'),
         txb.pure(bigAmountB.toString(), 'u128'),
+        // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE, '128'),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+
+    return signAndExecute(txb, this.provider);
+  }
+
+  async removeLiquidity(
+    options: Pool.RemoveLiquidityOptions,
+  ): Promise<SuiTransactionBlockResponse> {
+    const {
+      amount: [amountA, amountB],
+      slippage,
+      nft,
+      signAndExecute,
+    } = options;
+
+    const contract = this.contract.contract;
+    const [pool, liquidity] = await Promise.all([
+      this.getPoolIdByNFT(nft),
+      this.getNFTLiquidity(nft),
+    ]);
+    const poolObject = await this.getPoolObjectWithType(pool);
+    const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
+    const coinTypeA = typeArguments[0];
+    const coinTypeB = typeArguments[1];
+    const [coinA, coinB] = await Promise.all([
+      this.provider.getCoinMetadata({ coinType: coinTypeA }),
+      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+    ]);
+    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
+    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
+
+    const txb = new TransactionBlock();
+    txb.moveCall({
+      target: `${contract.packageId}::position_manager::decrease_liquidity`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // positions
+        txb.object(contract.positions),
+        // nft
+        txb.object(nft),
+        // liquidity
+        txb.pure(liquidity, 'u128'),
+        // amount_min
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        // deadline
+        txb.pure(Date.now() + ONE_MINUTE * 3, '128'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -335,6 +397,34 @@ export class Pool {
 
   protected isSUI(coinType: string) {
     return coinType.toLowerCase().indexOf('sui') > -1;
+  }
+
+  protected async getPoolObjectWithType(poolId: string) {
+    const poolObject = await this.provider.getObject({
+      id: poolId,
+      options: { showType: true },
+    });
+    validateObjectResponse(poolObject, 'pool');
+    return poolObject;
+  }
+
+  protected async getPoolIdByNFT(nftId: string): Promise<string> {
+    const nftObject = await this.provider.getObject({
+      id: nftId,
+      options: { showContent: true },
+    });
+    validateObjectResponse(nftObject, 'nft');
+    const fields = getObjectFields(nftObject) as { pool_id: string };
+    return fields.pool_id;
+  }
+
+  protected async getNFTLiquidity(nftId: string): Promise<string> {
+    const result = await this.provider.getDynamicFieldObject({
+      parentId: this.contract.contract.positions,
+      name: { type: 'address', value: nftId },
+    });
+    const fields = getObjectFields(result) as { liquidity: string };
+    return fields.liquidity;
   }
 
   protected getPoolTypeArguments(type: string): [string, string, string] {
