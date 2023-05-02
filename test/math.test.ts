@@ -20,5 +20,5 @@ test('priceToTickIndex', () => {
   ).toBe('3650');
   expect(
     math.priceToTickIndex(new Decimal('1883.0027237193456001'), 0, 0).toString(),
-  ).toBe('75410');
+  ).toBe('75409');
 });

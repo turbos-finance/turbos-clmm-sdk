@@ -6,7 +6,6 @@ import {
   TransactionArgument,
   SUI_CLOCK_OBJECT_ID,
   PaginatedCoins,
-  getObjectFields,
   getObjectType,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
@@ -139,8 +138,8 @@ export class Pool {
         txb.pure(bigAmountA.toString(), 'u128'),
         txb.pure(bigAmountB.toString(), 'u128'),
         // amount_min
-        txb.pure(this.getMinimumAmount(bigAmountA, fee.fee, slippage), 'u64'),
-        txb.pure(this.getMinimumAmount(bigAmountB, fee.fee, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage).toFixed(0), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage).toFixed(0), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -166,9 +165,8 @@ export class Pool {
     const contract = this.contract.contract;
     const poolObject = await this.provider.getObject({
       id: pool,
-      options: { showContent: true, showType: true },
+      options: { showType: true },
     });
-    const fields = getObjectFields(poolObject) as PoolFields;
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
     const coinTypeA = typeArguments[0];
     const coinTypeB = typeArguments[1];
@@ -220,8 +218,8 @@ export class Pool {
         // amount_desired
         txb.pure(bigAmountA.toString(), 'u128'),
         txb.pure(bigAmountB.toString(), 'u128'),
-        txb.pure(this.getMinimumAmount(bigAmountA, fields.fee, slippage), 'u64'),
-        txb.pure(this.getMinimumAmount(bigAmountB, fields.fee, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -234,14 +232,16 @@ export class Pool {
     return signAndExecute(txb, this.provider);
   }
 
-  protected getMinimumAmount(
-    value: Decimal | number | string,
-    fee: Decimal | number | string,
-    slippage: Decimal | number | string,
-  ) {
-    const feeRate = new Decimal(1).minus(new Decimal(fee).div(10000).div(100));
-    const slippageRate = new Decimal(1).minus(new Decimal(slippage).div(100));
-    return new Decimal(value).mul(feeRate).mul(slippageRate).toFixed(0);
+  protected getMinimumAmountBySlippage(
+    amount: number | string | Decimal,
+    slippage: number | string | Decimal,
+  ): Decimal {
+    const origin = new Decimal(amount);
+    const ratio = new Decimal(1).minus(new Decimal(slippage).div(100));
+    if (ratio.lte(0) || ratio.gt(1)) {
+      throw new Error('invalid slippage range');
+    }
+    return origin.mul(ratio);
   }
 
   protected async selectCoinIds(
