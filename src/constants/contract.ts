@@ -23,11 +23,11 @@ export const contracts: {
       '0x182766023b248aae470c13e8cc09bdb5c7731a2c4755da27b785cc0db8535695',
   },
   [Network.testnet]: {
-    packageId: '0x5825e3c103e8de1e84970441b0f9e11302746ac08880bcf8dbc6390d09f0eb0a',
-    poolConfig: '0xc0d8f98a89d813fe60560206b7ba5ac7d9d7625c3d7a4ec59e0cdc5a432348ba',
-    positions: '0x0c73e2c660aa77df582a1f37a7d16afccc253b8d844e08f0e21619e8ed6af63c',
+    packageId: '0x2d9ae54c77be6253e3c2f5fa29712ef2174f512f4569e915e3511c6130664f45',
+    poolConfig: '0xb1f575bf60ef6298a4abb98bff2dd6be456b454ac76f9f3c4bd1edc47c4f702c',
+    positions: '0x68463abe2ddaa6a01fbf58b5cb66b9f8f37c6510fc8abfbab3f6cea3eaf3d853',
     poolFactoryAdminCap:
-      '0x768248c5bb275ccb32f2687d99a12def0080262d91ec33c9bcf9784b578201df',
+      '0x38ccdd16b649eacf7dba7cad08b2b35ba93dcb2bd9749ccb438cc302bd233413',
   },
   [Network.mainnet]: {
     packageId: '0x0',
