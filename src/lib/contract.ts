@@ -6,10 +6,12 @@ import {
 } from '@mysten/sui.js';
 import { Network, contractFees, contracts } from '../constants';
 
-export interface Fee {
-  fee: number;
-  objectId: string;
-  type: string;
+export declare module Contract {
+  export interface Fee {
+    fee: number;
+    objectId: string;
+    type: string;
+  }
 }
 
 export class Contract {
@@ -22,9 +24,9 @@ export class Contract {
     return contracts[this.network];
   }
 
-  protected _fees?: Fee[] | Promise<Fee[]>;
+  protected _fees?: Contract.Fee[] | Promise<Contract.Fee[]>;
 
-  async getFees(): Promise<Fee[]> {
+  async getFees(): Promise<Contract.Fee[]> {
     if (this._fees) return this._fees;
 
     const objs = await this.provider.multiGetObjects({

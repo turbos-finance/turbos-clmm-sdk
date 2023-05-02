@@ -10,54 +10,91 @@ import {
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { MathUtil } from './math';
-import { Contract, Fee } from './contract';
+import { Contract } from './contract';
 
 const ONE_MINUTE = 60 * 1000;
 
-export interface PoolMint {
-  address: SuiAddress;
-  amount: [a: number | string, b: number | string];
-  minPrice: number | string | Decimal;
-  maxPrice: number | string | Decimal;
-  slippage: number | string | Decimal;
-  /**
-   * Execute transaction by signer
-   * ```typescript
-   * import { RawSigner } from '@mysten/sui.js';
-   * {
-   *   signAndExecute(txb, provider) {
-   *     const mnemonic = sdk.account.generateMnemonic(); // OR from your own
-   *     const keypair = sdk.account.getKeypairFromMnemonics(mnemonic);
-   *     const signer = new RawSigner(keypair, provider);
-   *     return signer.signAndExecuteTransactionBlock(txb);
-   *   },
-   * }
-   * ```
-   * @see RawSigner
-   */
-  signAndExecute: (
-    txb: TransactionBlock,
-    provider: JsonRpcProvider,
-  ) => Promise<SuiTransactionBlockResponse>;
-}
+export declare module Pool {
+  export interface BasePoolMintOptions {
+    address: SuiAddress;
+    amount: [a: number | string, b: number | string];
+    minPrice: number | string | Decimal;
+    maxPrice: number | string | Decimal;
+    slippage: number | string | Decimal;
+    /**
+     * Execute transaction by signer
+     * ```typescript
+     * import { RawSigner } from '@mysten/sui.js';
+     * {
+     *   signAndExecute(txb, provider) {
+     *     const mnemonic = sdk.account.generateMnemonic(); // OR from your own
+     *     const keypair = sdk.account.getKeypairFromMnemonics(mnemonic);
+     *     const signer = new RawSigner(keypair, provider);
+     *     return signer.signAndExecuteTransactionBlock(txb);
+     *   },
+     * }
+     * ```
+     * @see RawSigner
+     */
+    signAndExecute: (
+      txb: TransactionBlock,
+      provider: JsonRpcProvider,
+    ) => Promise<SuiTransactionBlockResponse>;
+  }
 
-export interface CreatePoolOptions extends PoolMint {
-  /**
-   * Fee object from `sdk.contract.getFees()`
-   */
-  fee: Fee;
-  /**
-   * Coin type such as `0x2::sui::SUI`
-   */
-  coins: [a: string, b: string];
-  currentPrice: number | string | Decimal;
-}
+  export interface CreatePoolOptions extends BasePoolMintOptions {
+    /**
+     * Fee object from `sdk.contract.getFees()`
+     */
+    fee: Contract.Fee;
+    /**
+     * Coin type such as `0x2::sui::SUI`
+     */
+    coins: [a: string, b: string];
+    currentPrice: number | string | Decimal;
+  }
 
-export interface AddLiquidityOptions extends PoolMint {
+  export interface AddLiquidityOptions extends BasePoolMintOptions {
+    /**
+     * Pool ID
+     */
+    pool: string;
+  }
+
   /**
-   * Pool ID
+   * Pool fields from `provider.getObject()` while turning on `showContent` option.
    */
-  pool: string;
+  export interface PoolFields {
+    coin_a: string;
+    coin_b: string;
+    deploy_time_ms: string;
+    fee: number;
+    fee_growth_global_a: string;
+    fee_growth_global_b: string;
+    fee_protocol: number;
+    id: { id: string };
+    liquidity: string;
+    max_liquidity_per_tick: string;
+    protocol_fees_a: string;
+    protocol_fees_b: string;
+    reward_infos: any[];
+    reward_last_updated_time_ms: string;
+    sqrt_price: string;
+    tick_current_index: {
+      type: string;
+      fields: { bits: number };
+    };
+    tick_map: {
+      type: string;
+      fields: {
+        id: { id: string };
+        size: string;
+      };
+    };
+    tick_spacing: number;
+    unlocked: boolean;
+    version: string;
+  }
 }
 
 export class Pool {
@@ -67,7 +104,9 @@ export class Pool {
     protected readonly math: MathUtil,
   ) {}
 
-  async createPool(options: CreatePoolOptions): Promise<SuiTransactionBlockResponse> {
+  async createPool(
+    options: Pool.CreatePoolOptions,
+  ): Promise<SuiTransactionBlockResponse> {
     const {
       fee,
       address,
@@ -152,7 +191,9 @@ export class Pool {
     return signAndExecute(txb, this.provider);
   }
 
-  async addLiquidity(options: AddLiquidityOptions): Promise<SuiTransactionBlockResponse> {
+  async addLiquidity(
+    options: Pool.AddLiquidityOptions,
+  ): Promise<SuiTransactionBlockResponse> {
     const {
       address,
       amount: [amountA, amountB],
@@ -300,36 +341,4 @@ export class Pool {
     }
     return [matched[1]!, matched[2]!, matched[3]!];
   }
-}
-
-export interface PoolFields {
-  coin_a: string;
-  coin_b: string;
-  deploy_time_ms: string;
-  fee: number;
-  fee_growth_global_a: string;
-  fee_growth_global_b: string;
-  fee_protocol: number;
-  id: { id: string };
-  liquidity: string;
-  max_liquidity_per_tick: string;
-  protocol_fees_a: string;
-  protocol_fees_b: string;
-  reward_infos: any[];
-  reward_last_updated_time_ms: string;
-  sqrt_price: string;
-  tick_current_index: {
-    type: string;
-    fields: { bits: number };
-  };
-  tick_map: {
-    type: string;
-    fields: {
-      id: { id: string };
-      size: string;
-    };
-  };
-  tick_spacing: number;
-  unlocked: boolean;
-  version: string;
 }
