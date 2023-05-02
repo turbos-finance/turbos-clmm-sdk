@@ -68,6 +68,13 @@ export declare module Pool {
     pool: string;
   }
 
+  export interface IncreaseLiquidityOptions extends MintParams {
+    /**
+     * NFT ID
+     */
+    nft: string;
+  }
+
   export interface RemoveLiquidityOptions extends MintParams {
     /**
      * NFT ID
@@ -170,10 +177,10 @@ export class Pool extends Base {
         txb.object(contract.positions),
         // coins
         txb.makeMoveVec({
-          objects: this.stripGas(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
         }),
         txb.makeMoveVec({
-          objects: this.stripGas(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
         }),
         // tick_lower_index
         txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
@@ -182,15 +189,15 @@ export class Pool extends Base {
         txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
         txb.pure(maxTick < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toString(), 'u128'),
-        txb.pure(bigAmountB.toString(), 'u128'),
+        txb.pure(bigAmountA.toString(), 'u64'),
+        txb.pure(bigAmountB.toString(), 'u64'),
         // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage).toFixed(0), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage).toFixed(0), 'u64'),
         // recipient
         txb.object(address),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE, '128'),
+        txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -250,10 +257,10 @@ export class Pool extends Base {
         txb.object(contract.positions),
         // coins
         txb.makeMoveVec({
-          objects: this.stripGas(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
         }),
         txb.makeMoveVec({
-          objects: this.stripGas(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
         }),
         // tick_lower_index
         txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
@@ -262,20 +269,80 @@ export class Pool extends Base {
         txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
         txb.pure(maxTick < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toString(), 'u128'),
-        txb.pure(bigAmountB.toString(), 'u128'),
+        txb.pure(bigAmountA.toString(), 'u64'),
+        txb.pure(bigAmountB.toString(), 'u64'),
         // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE, '128'),
+        txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
 
+    return signAndExecute(txb, this.provider);
+  }
+
+  async increaseLiquidity(options: Pool.IncreaseLiquidityOptions) {
+    const {
+      amount: [amountA, amountB],
+      slippage,
+      nft,
+      signAndExecute,
+    } = options;
+    const contract = this.contract.config;
+    const [{ pool_id: pool }, address] = await Promise.all([
+      this.nft.getFields(nft),
+      this.nft.getOwner(nft),
+    ]);
+    const poolObject = await this.getPoolObjectWithType(pool);
+    const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
+    const coinTypeA = typeArguments[0];
+    const coinTypeB = typeArguments[1];
+    const [coinA, coinB] = await Promise.all([
+      this.provider.getCoinMetadata({ coinType: coinTypeA }),
+      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+    ]);
+    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
+    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
+    const [coinIdsA, coinIdsB] = await Promise.all([
+      this.selectCoinIds(address!, coinTypeA, bigAmountA),
+      this.selectCoinIds(address!, coinTypeB, bigAmountB),
+    ]);
+
+    const txb = new TransactionBlock();
+    txb.moveCall({
+      target: `${contract.packageId}::position_manager::increase_liquidity`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // positions
+        txb.object(contract.positions),
+        // coins
+        txb.makeMoveVec({
+          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
+        }),
+        txb.makeMoveVec({
+          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
+        }),
+        // nft
+        txb.object(nft),
+        // amount_desired
+        txb.pure(bigAmountA.toString(), 'u64'),
+        txb.pure(bigAmountB.toString(), 'u64'),
+        // amount_min
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        // deadline
+        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
     return signAndExecute(txb, this.provider);
   }
 
@@ -321,7 +388,7 @@ export class Pool extends Base {
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE * 3, '128'),
+        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -375,7 +442,7 @@ export class Pool extends Base {
     return coinIds;
   }
 
-  protected stripGas(
+  protected wrapCoin(
     txb: TransactionBlock,
     coinIds: string[],
     coinType: string,

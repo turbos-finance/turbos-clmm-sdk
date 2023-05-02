@@ -1,4 +1,4 @@
-import { getObjectFields } from '@mysten/sui.js';
+import { getObjectFields, getObjectOwner } from '@mysten/sui.js';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 
@@ -35,6 +35,16 @@ export declare module NFT {
 }
 
 export class NFT extends Base {
+  async getOwner(nftId: string) {
+    const result = await this.provider.getObject({ id: nftId });
+    validateObjectResponse(result, 'nft');
+    const owner = getObjectOwner(result);
+    if (!owner || typeof owner === 'string') return void 0;
+    if ('ObjectOwner' in owner) return owner.ObjectOwner;
+    if ('AddressOwner' in owner) return owner.AddressOwner;
+    return void 0;
+  }
+
   async getFields(nftId: string): Promise<NFT.NftField> {
     const result = await this.provider.getObject({
       id: nftId,
