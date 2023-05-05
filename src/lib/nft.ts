@@ -36,7 +36,10 @@ export declare module NFT {
 
 export class NFT extends Base {
   async getOwner(nftId: string) {
-    const result = await this.provider.getObject({ id: nftId });
+    const result = await this.provider.getObject({
+      id: nftId,
+      options: { showOwner: true },
+    });
     validateObjectResponse(result, 'nft');
     const owner = getObjectOwner(result);
     if (!owner || typeof owner === 'string') return void 0;
