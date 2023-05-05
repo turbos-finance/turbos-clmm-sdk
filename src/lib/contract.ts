@@ -7,6 +7,7 @@ export declare module Contract {
     fee: number;
     objectId: string;
     type: string;
+    tickSpacing: number;
   }
 }
 
@@ -25,14 +26,14 @@ export class Contract extends Base {
       options: { showType: true, showContent: true },
     });
     this._fees = objs.map((obj) => {
-      const fee = getObjectFields(obj)!['fee'];
+      const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };
       const objectId = getObjectId(obj);
       let type = getMoveObjectType(obj)!;
       const [_, matched] = type.match(/\<([^)]*)\>/) || [];
       if (matched) {
         type = matched.split(/\s*,\s*/, 1).pop()!;
       }
-      return { fee: Number(fee), objectId, type };
+      return { fee: fields.fee, objectId, type, tickSpacing: fields.tick_spacing };
     });
     return this._fees;
   }

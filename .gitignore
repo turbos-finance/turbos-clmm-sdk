@@ -5,4 +5,4 @@ build/
 *.log
 .idea/
 coverage/
-test.mjs
+/test.ts

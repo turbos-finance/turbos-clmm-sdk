@@ -7,6 +7,7 @@ import {
   SUI_CLOCK_OBJECT_ID,
   PaginatedCoins,
   getObjectType,
+  CoinMetadata,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
@@ -146,16 +147,8 @@ export class Pool extends Base {
       coinA.decimals,
       coinB.decimals,
     );
-    const minTick = this.math.priceToTickIndex(
-      new Decimal(minPrice),
-      coinA.decimals,
-      coinB.decimals,
-    );
-    const maxTick = this.math.priceToTickIndex(
-      new Decimal(maxPrice),
-      coinA.decimals,
-      coinB.decimals,
-    );
+    const minTick = this.getTickIndex(minPrice, coinA, coinB, fee);
+    const maxTick = this.getTickIndex(maxPrice, coinA, coinB, fee);
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
@@ -452,7 +445,7 @@ export class Pool extends Base {
     amount: Decimal,
   ): TransactionArgument[] {
     return this.isSUI(coinType)
-      ? txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())]).slice(0, 1)
+      ? [txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())])[0]!]
       : coinIds.map((id) => txb.object(id));
   }
 
@@ -475,5 +468,20 @@ export class Pool extends Base {
       throw new Error('Invalid pool type');
     }
     return [matched[1]!, matched[2]!, matched[3]!];
+  }
+
+  protected getTickIndex(
+    price: number | string | Decimal,
+    coinA: CoinMetadata,
+    coinB: CoinMetadata,
+    fee: Contract.Fee,
+  ) {
+    let tick = this.math.priceToTickIndex(
+      new Decimal(price),
+      coinA.decimals,
+      coinB.decimals,
+    );
+    tick -= tick % fee.tickSpacing;
+    return tick;
   }
 }
