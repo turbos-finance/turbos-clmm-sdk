@@ -19,7 +19,7 @@ const ONE_MINUTE = 60 * 1000;
 
 export declare module Pool {
   export interface MintParams {
-    amount: [a: number | string, b: number | string];
+    amount: [a: Decimal.Value, b: Decimal.Value];
     /**
      * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
      */
@@ -167,7 +167,7 @@ export class Pool extends Base {
         // fee_type?
         txb.object(fee.objectId),
         // sqrt_price
-        txb.pure(currentSqrtPrice, 'u128'),
+        txb.pure(currentSqrtPrice.toString(), 'u128'),
         // positions
         txb.object(contract.positions),
         // coins
@@ -184,8 +184,8 @@ export class Pool extends Base {
         txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
         txb.pure(maxTick < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toString(), 'u64'),
-        txb.pure(bigAmountB.toString(), 'u64'),
+        txb.pure(bigAmountA.toFixed(0), 'u64'),
+        txb.pure(bigAmountB.toFixed(0), 'u64'),
         // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage).toFixed(0), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage).toFixed(0), 'u64'),
@@ -195,6 +195,8 @@ export class Pool extends Base {
         txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.versioned),
       ],
     });
 
@@ -216,8 +218,7 @@ export class Pool extends Base {
     const contract = this.contract.config;
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
-    const coinTypeA = typeArguments[0];
-    const coinTypeB = typeArguments[1];
+    const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
@@ -231,16 +232,8 @@ export class Pool extends Base {
       this.selectCoinIds(address, coinTypeB, bigAmountB),
     ]);
 
-    const minTick = this.math.priceToTickIndex(
-      new Decimal(minPrice),
-      coinA.decimals,
-      coinB.decimals,
-    );
-    const maxTick = this.math.priceToTickIndex(
-      new Decimal(maxPrice),
-      coinA.decimals,
-      coinB.decimals,
-    );
+    const minTick = this.math.priceToTickIndex(minPrice, coinA.decimals, coinB.decimals);
+    const maxTick = this.math.priceToTickIndex(maxPrice, coinA.decimals, coinB.decimals);
 
     txb.moveCall({
       target: `${contract.packageId}::position_manager::mint`,
@@ -275,6 +268,8 @@ export class Pool extends Base {
         txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.versioned),
       ],
     });
 
@@ -295,8 +290,7 @@ export class Pool extends Base {
     ]);
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
-    const coinTypeA = typeArguments[0];
-    const coinTypeB = typeArguments[1];
+    const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
@@ -337,6 +331,8 @@ export class Pool extends Base {
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.versioned),
       ],
     });
     return signAndExecute(txb, this.provider);
@@ -358,8 +354,7 @@ export class Pool extends Base {
     ]);
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
-    const coinTypeA = typeArguments[0];
-    const coinTypeB = typeArguments[1];
+    const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
@@ -388,6 +383,8 @@ export class Pool extends Base {
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.versioned),
       ],
     });
     return signAndExecute(txb, this.provider);
