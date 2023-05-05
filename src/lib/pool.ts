@@ -216,8 +216,7 @@ export class Pool extends Base {
       pool,
     } = options;
     const contract = this.contract.config;
-    const poolObject = await this.getPoolObjectWithType(pool);
-    const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
+    const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB, feeType] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
@@ -291,8 +290,7 @@ export class Pool extends Base {
       this.nft.getOwner(nft),
     ]);
     if (!address) throw new Error('Missing owner from nft: ' + nft);
-    const poolObject = await this.getPoolObjectWithType(pool);
-    const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
+    const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
@@ -355,8 +353,7 @@ export class Pool extends Base {
       this.nft.getFields(nft),
       this.nft.getPositionFields(nft),
     ]);
-    const poolObject = await this.getPoolObjectWithType(pool);
-    const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
+    const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
@@ -501,16 +498,18 @@ export class Pool extends Base {
     return coinType.toLowerCase().indexOf('sui') > -1;
   }
 
-  protected async getPoolObjectWithType(poolId: string) {
-    const poolObject = await this.provider.getObject({
-      id: poolId,
-      options: { showType: true },
+  protected getPoolTypeArguments(poolId: string): Promise<[string, string, string]> {
+    return this.getCacheOrSet('pool-type', async () => {
+      const result = await this.provider.getObject({
+        id: poolId,
+        options: { showType: true },
+      });
+      validateObjectResponse(result, 'pool');
+      return this.parsePoolType(getObjectType(result)!);
     });
-    validateObjectResponse(poolObject, 'pool');
-    return poolObject;
   }
 
-  protected getPoolTypeArguments(type: string): [string, string, string] {
+  protected parsePoolType(type: string): [string, string, string] {
     const matched = type.match(/(\w+::\w+::\w+)/g);
     if (!matched || matched.length !== 4) {
       throw new Error('Invalid pool type');

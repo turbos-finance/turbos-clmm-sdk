@@ -6,12 +6,12 @@ const sdk = new TurbosSdk(new JsonRpcProvider(localnetConnection), Network.local
 test('parse type arguments from pool.type', () => {
   const poolType =
     '0x2abcde::pool::Pool<0x2::sui::SUI, 0x1banana::usdc::USDC, 0x34567::fee3000bps::FEE3000BPS>';
-  expect(sdk.pool['getPoolTypeArguments'](poolType)).toStrictEqual([
+  expect(sdk.pool['parsePoolType'](poolType)).toStrictEqual([
     '0x2::sui::SUI',
     '0x1banana::usdc::USDC',
     '0x34567::fee3000bps::FEE3000BPS',
   ]);
-  expect(() => sdk.pool['getPoolTypeArguments']('some text')).toThrowError();
+  expect(() => sdk.pool['parsePoolType']('some text')).toThrowError();
 });
 
 test.each(['a::sui::SUI', 'a.sui', 'SUI', 'sui', 'suik'])(
