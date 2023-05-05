@@ -1,4 +1,4 @@
-import { getObjectFields, getObjectOwner } from '@mysten/sui.js';
+import { SuiObjectResponse, getObjectFields, getObjectOwner } from '@mysten/sui.js';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 
@@ -36,11 +36,7 @@ export declare module NFT {
 
 export class NFT extends Base {
   async getOwner(nftId: string) {
-    const result = await this.provider.getObject({
-      id: nftId,
-      options: { showOwner: true },
-    });
-    validateObjectResponse(result, 'nft');
+    const result = await this.getObject(nftId);
     const owner = getObjectOwner(result);
     if (!owner || typeof owner === 'string') return void 0;
     if ('ObjectOwner' in owner) return owner.ObjectOwner;
@@ -49,28 +45,39 @@ export class NFT extends Base {
   }
 
   async getFields(nftId: string): Promise<NFT.NftField> {
-    const result = await this.provider.getObject({
-      id: nftId,
-      options: { showContent: true },
-    });
-    validateObjectResponse(result, 'nft');
+    const result = await this.getObject(nftId);
     return getObjectFields(result) as NFT.NftField;
   }
 
   async getPositionFields(nftId: string): Promise<NFT.PositionField> {
-    const result = await this.provider.getDynamicFieldObject({
-      parentId: this.contract.config.positions,
-      name: { type: 'address', value: nftId },
+    return this.getCacheOrSet('nft-position-fields-' + nftId, async () => {
+      const result = await this.provider.getDynamicFieldObject({
+        parentId: this.contract.config.positions,
+        name: { type: 'address', value: nftId },
+      });
+      return getObjectFields(result) as NFT.PositionField;
     });
-    return getObjectFields(result) as NFT.PositionField;
   }
 
   async getPositionFieldsByPositionId(positionId: string): Promise<NFT.PositionField> {
-    const result = await this.provider.getObject({
-      id: positionId,
-      options: { showContent: true },
+    return this.getCacheOrSet('position-fields-' + positionId, async () => {
+      const result = await this.provider.getObject({
+        id: positionId,
+        options: { showContent: true },
+      });
+      validateObjectResponse(result, 'position');
+      return getObjectFields(result) as NFT.PositionField;
     });
-    validateObjectResponse(result, 'position');
-    return getObjectFields(result) as NFT.PositionField;
+  }
+
+  protected getObject(nftId: string): Promise<SuiObjectResponse> {
+    return this.getCacheOrSet('nft-object-' + nftId, async () => {
+      const result = await this.provider.getObject({
+        id: nftId,
+        options: { showContent: true, showOwner: true },
+      });
+      validateObjectResponse(result, 'nft');
+      return result;
+    });
   }
 }

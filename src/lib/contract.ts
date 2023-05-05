@@ -16,25 +16,27 @@ export class Contract extends Base {
     return contracts[this.network];
   }
 
-  protected _fees?: Contract.Fee[] | Promise<Contract.Fee[]>;
-
-  async getFees(): Promise<Contract.Fee[]> {
-    if (this._fees) return this._fees;
-
-    const objs = await this.provider.multiGetObjects({
-      ids: Object.values(contractFees[this.network]),
-      options: { showType: true, showContent: true },
+  getFees(): Promise<Contract.Fee[]> {
+    return this.getCacheOrSet('fees', async () => {
+      const objs = await this.provider.multiGetObjects({
+        ids: Object.values(contractFees[this.network]),
+        options: { showType: true, showContent: true },
+      });
+      return objs.map((obj) => {
+        const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };
+        const objectId = getObjectId(obj);
+        let type = getMoveObjectType(obj)!;
+        const [_, matched] = type.match(/\<([^)]*)\>/) || [];
+        if (matched) {
+          type = matched.split(/\s*,\s*/, 1).pop()!;
+        }
+        return {
+          fee: fields.fee,
+          objectId,
+          type,
+          tickSpacing: fields.tick_spacing,
+        };
+      });
     });
-    this._fees = objs.map((obj) => {
-      const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };
-      const objectId = getObjectId(obj);
-      let type = getMoveObjectType(obj)!;
-      const [_, matched] = type.match(/\<([^)]*)\>/) || [];
-      if (matched) {
-        type = matched.split(/\s*,\s*/, 1).pop()!;
-      }
-      return { fee: fields.fee, objectId, type, tickSpacing: fields.tick_spacing };
-    });
-    return this._fees;
   }
 }

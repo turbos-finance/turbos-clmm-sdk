@@ -31,8 +31,8 @@ test.each(['a::sbui', 'a.su', 'suki', 's ui', 'sometext'])(
 test('minimum amount by slippage', () => {
   expect(sdk.pool['getMinimumAmountBySlippage'](10, 30).toString()).toBe('7');
   expect(sdk.pool['getMinimumAmountBySlippage'](10, 20).toString()).toBe('8');
-  expect(sdk.pool['getMinimumAmountBySlippage'](10, 5).toString()).toBe('9.5');
-  expect(sdk.pool['getMinimumAmountBySlippage'](10, 0).toString()).toBe('10');
+  expect(sdk.pool['getMinimumAmountBySlippage'](30, 5).toString()).toBe('29');
+  expect(sdk.pool['getMinimumAmountBySlippage'](30, 0).toString()).toBe('30');
 });
 
 test.each([-35, -1, 100, 101, 200])('invalid slippage', (slippage) => {
