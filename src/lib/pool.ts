@@ -140,6 +140,7 @@ export class Pool extends Base {
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
     ]);
+    if (!coinA || !coinB) throw new Error('Invalid coin type');
     const currentSqrtPrice = this.math.priceToSqrtPriceX64(
       new Decimal(currentPrice),
       coinA.decimals,
@@ -227,7 +228,7 @@ export class Pool extends Base {
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
     ]);
-
+    if (!coinA || !coinB) throw new Error('Invalid coin type');
     const txb = new TransactionBlock();
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
@@ -306,6 +307,7 @@ export class Pool extends Base {
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
     ]);
+    if (!coinA || !coinB) throw new Error('Invalid coin type');
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
@@ -368,6 +370,7 @@ export class Pool extends Base {
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
     ]);
+    if (!coinA || !coinB) throw new Error('Invalid coin type');
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
 
