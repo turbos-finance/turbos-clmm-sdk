@@ -14,20 +14,6 @@ test('parse type arguments from pool.type', () => {
   expect(() => sdk.pool['parsePoolType']('some text')).toThrowError();
 });
 
-test.each(['a::sui::SUI', 'a.sui', 'SUI', 'sui', 'suik'])(
-  'valid sui literal',
-  (value) => {
-    expect(sdk.pool['isSUI'](value)).toBeTruthy();
-  },
-);
-
-test.each(['a::sbui', 'a.su', 'suki', 's ui', 'sometext'])(
-  'invalid sui literal',
-  (value) => {
-    expect(sdk.pool['isSUI'](value)).toBeFalsy();
-  },
-);
-
 test('minimum amount by slippage', () => {
   expect(sdk.pool['getMinimumAmountBySlippage'](10, 30).toString()).toBe('7');
   expect(sdk.pool['getMinimumAmountBySlippage'](10, 20).toString()).toBe('8');

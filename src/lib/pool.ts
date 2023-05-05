@@ -3,9 +3,7 @@ import {
   JsonRpcProvider,
   SuiAddress,
   SuiTransactionBlockResponse,
-  TransactionArgument,
   SUI_CLOCK_OBJECT_ID,
-  PaginatedCoins,
   getObjectType,
   CoinMetadata,
 } from '@mysten/sui.js';
@@ -153,8 +151,8 @@ export class Pool extends Base {
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.selectCoinIds(address, coinTypeA, bigAmountA),
-      this.selectCoinIds(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
+      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
     ]);
 
     const txb = new TransactionBlock();
@@ -172,10 +170,10 @@ export class Pool extends Base {
         txb.object(contract.positions),
         // coins
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
         }),
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
         }),
         // tick_lower_index
         txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
@@ -227,8 +225,8 @@ export class Pool extends Base {
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.selectCoinIds(address, coinTypeA, bigAmountA),
-      this.selectCoinIds(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
+      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
     ]);
 
     const fees = await this.contract.getFees();
@@ -246,10 +244,10 @@ export class Pool extends Base {
         txb.object(contract.positions),
         // coins
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
         }),
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
         }),
         // tick_lower_index
         txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
@@ -300,8 +298,8 @@ export class Pool extends Base {
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.selectCoinIds(address, coinTypeA, bigAmountA),
-      this.selectCoinIds(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
+      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
     ]);
 
     const txb = new TransactionBlock();
@@ -315,10 +313,10 @@ export class Pool extends Base {
         txb.object(contract.positions),
         // coins
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
         }),
         txb.makeMoveVec({
-          objects: this.wrapCoin(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
         }),
         // nft
         txb.object(nft),
@@ -447,55 +445,6 @@ export class Pool extends Base {
       throw new Error('invalid slippage range');
     }
     return origin.mul(ratio).toFixed(0);
-  }
-
-  protected async selectCoinIds(
-    owner: SuiAddress,
-    coinType: string,
-    expectedAmount: Decimal,
-  ) {
-    const coins: PaginatedCoins['data'][number][] = [];
-    const coinIds: string[] = [];
-    let totalAmount = new Decimal(0);
-    let result: PaginatedCoins | undefined;
-
-    do {
-      result = await this.provider.getCoins({
-        owner,
-        coinType,
-        cursor: result?.nextCursor,
-      });
-      coins.push(...result.data);
-    } while (result.hasNextPage);
-
-    coins.sort((a, b) => {
-      // From big to small
-      return Number(b.balance) - Number(a.balance);
-    });
-
-    for (const coin of coins) {
-      coinIds.push(coin.coinObjectId);
-      totalAmount = totalAmount.add(coin.balance);
-      if (totalAmount.gte(expectedAmount)) {
-        break;
-      }
-    }
-    return coinIds;
-  }
-
-  protected wrapCoin(
-    txb: TransactionBlock,
-    coinIds: string[],
-    coinType: string,
-    amount: Decimal,
-  ): TransactionArgument[] {
-    return this.isSUI(coinType)
-      ? [txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())])[0]!]
-      : coinIds.map((id) => txb.object(id));
-  }
-
-  protected isSUI(coinType: string) {
-    return coinType.toLowerCase().indexOf('sui') > -1;
   }
 
   protected getPoolTypeArguments(poolId: string): Promise<[string, string, string]> {

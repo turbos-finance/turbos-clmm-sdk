@@ -48,4 +48,8 @@ export class Base {
   protected get nft() {
     return this.sdk.nft;
   }
+
+  protected get coin() {
+    return this.sdk.coin;
+  }
 }
