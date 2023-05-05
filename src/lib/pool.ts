@@ -187,8 +187,8 @@ export class Pool extends Base {
         txb.pure(bigAmountA.toFixed(0), 'u64'),
         txb.pure(bigAmountB.toFixed(0), 'u64'),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage).toFixed(0), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage).toFixed(0), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -218,7 +218,7 @@ export class Pool extends Base {
     const contract = this.contract.config;
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
-    const [coinTypeA, coinTypeB] = typeArguments;
+    const [coinTypeA, coinTypeB, feeType] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.provider.getCoinMetadata({ coinType: coinTypeA }),
       this.provider.getCoinMetadata({ coinType: coinTypeB }),
@@ -232,8 +232,10 @@ export class Pool extends Base {
       this.selectCoinIds(address, coinTypeB, bigAmountB),
     ]);
 
-    const minTick = this.math.priceToTickIndex(minPrice, coinA.decimals, coinB.decimals);
-    const maxTick = this.math.priceToTickIndex(maxPrice, coinA.decimals, coinB.decimals);
+    const fees = await this.contract.getFees();
+    const fee = fees.find((item) => item.type === feeType)!;
+    const minTick = this.getTickIndex(minPrice, coinA, coinB, fee);
+    const maxTick = this.getTickIndex(maxPrice, coinA, coinB, fee);
 
     txb.moveCall({
       target: `${contract.packageId}::position_manager::mint`,
@@ -257,8 +259,8 @@ export class Pool extends Base {
         txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
         txb.pure(maxTick < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toString(), 'u64'),
-        txb.pure(bigAmountB.toString(), 'u64'),
+        txb.pure(bigAmountA.toFixed(0), 'u64'),
+        txb.pure(bigAmountB.toFixed(0), 'u64'),
         // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
@@ -288,6 +290,7 @@ export class Pool extends Base {
       this.nft.getFields(nft),
       this.nft.getOwner(nft),
     ]);
+    if (!address) throw new Error('Missing owner from nft: ' + nft);
     const poolObject = await this.getPoolObjectWithType(pool);
     const typeArguments = this.getPoolTypeArguments(getObjectType(poolObject)!);
     const [coinTypeA, coinTypeB] = typeArguments;
@@ -299,8 +302,8 @@ export class Pool extends Base {
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.selectCoinIds(address!, coinTypeA, bigAmountA),
-      this.selectCoinIds(address!, coinTypeB, bigAmountB),
+      this.selectCoinIds(address, coinTypeA, bigAmountA),
+      this.selectCoinIds(address, coinTypeB, bigAmountB),
     ]);
 
     const txb = new TransactionBlock();
@@ -322,8 +325,8 @@ export class Pool extends Base {
         // nft
         txb.object(nft),
         // amount_desired
-        txb.pure(bigAmountA.toString(), 'u64'),
-        txb.pure(bigAmountB.toString(), 'u64'),
+        txb.pure(bigAmountA.toFixed(0), 'u64'),
+        txb.pure(bigAmountB.toFixed(0), 'u64'),
         // amount_min
         txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
@@ -440,13 +443,13 @@ export class Pool extends Base {
   protected getMinimumAmountBySlippage(
     amount: Decimal.Value,
     slippage: Decimal.Value,
-  ): Decimal {
+  ): string {
     const origin = new Decimal(amount);
     const ratio = new Decimal(1).minus(new Decimal(slippage).div(100));
     if (ratio.lte(0) || ratio.gt(1)) {
       throw new Error('invalid slippage range');
     }
-    return origin.mul(ratio);
+    return origin.mul(ratio).toFixed(0);
   }
 
   protected async selectCoinIds(
