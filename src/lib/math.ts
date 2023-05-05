@@ -9,9 +9,9 @@ const LOG_B_P_ERR_MARGIN_LOWER_X64 = '184467440737095516';
 const LOG_B_P_ERR_MARGIN_UPPER_X64 = '15793534762490258745';
 
 export class MathUtil {
-  priceToSqrtPriceX64(price: Decimal, decimalsA: number, decimalsB: number): BN {
+  priceToSqrtPriceX64(price: Decimal.Value, decimalsA: number, decimalsB: number): BN {
     return new BN(
-      price
+      new Decimal(price)
         .mul(Decimal.pow(10, decimalsB - decimalsA))
         .sqrt()
         .mul(Decimal.pow(2, 64))
@@ -27,7 +27,7 @@ export class MathUtil {
       .mul(Decimal.pow(10, decimalsA - decimalsB));
   }
 
-  priceToTickIndex(price: Decimal, decimalsA: number, decimalsB: number): number {
+  priceToTickIndex(price: Decimal.Value, decimalsA: number, decimalsB: number): number {
     return this.sqrtPriceX64ToTickIndex(
       this.priceToSqrtPriceX64(price, decimalsA, decimalsB),
     );
@@ -102,11 +102,11 @@ export class MathUtil {
     return num.mul(Decimal.pow(2, -64));
   }
 
-  scaleDown(value: Decimal | string | number, decimals: number) {
+  scaleDown(value: Decimal.Value, decimals: number) {
     return new Decimal(value).div(Decimal.pow(10, decimals)).toString();
   }
 
-  scaleUp(value: Decimal | string | number, decimals: number) {
+  scaleUp(value: Decimal.Value, decimals: number) {
     return new Decimal(value).mul(Decimal.pow(10, decimals));
   }
 

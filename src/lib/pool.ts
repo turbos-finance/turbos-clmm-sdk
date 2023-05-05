@@ -13,6 +13,7 @@ import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
+import BN from 'bn.js';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -22,7 +23,7 @@ export declare module Pool {
     /**
      * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
      */
-    slippage: number | string | Decimal;
+    slippage: Decimal.Value;
     /**
      * Execute transaction by signer
      * ```typescript
@@ -46,8 +47,8 @@ export declare module Pool {
 
   export interface LiquidityParams {
     address: SuiAddress;
-    minPrice: number | string | Decimal;
-    maxPrice: number | string | Decimal;
+    minPrice: Decimal.Value;
+    maxPrice: Decimal.Value;
   }
 
   export interface CreatePoolOptions extends MintParams, LiquidityParams {
@@ -59,7 +60,7 @@ export declare module Pool {
      * Coin type such as `0x2::sui::SUI`
      */
     coins: [a: string, b: string];
-    currentPrice: number | string | Decimal;
+    currentPrice: Decimal.Value;
   }
 
   export interface AddLiquidityOptions extends MintParams, LiquidityParams {
@@ -143,7 +144,7 @@ export class Pool extends Base {
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
     const currentSqrtPrice = this.math.priceToSqrtPriceX64(
-      new Decimal(currentPrice),
+      currentPrice,
       coinA.decimals,
       coinB.decimals,
     );
@@ -392,9 +393,56 @@ export class Pool extends Base {
     return signAndExecute(txb, this.provider);
   }
 
+  public getTokenAmountsFromLiquidity(options: {
+    currentSqrtPrice: BN;
+    lowerSqrtPrice: BN;
+    upperSqrtPrice: BN;
+    /**
+     * Defaults `BN(100_000_000)`
+     */
+    liquidity?: BN;
+    /**
+     * Defaults `true`
+     */
+    ceil?: boolean;
+  }): [a: BN, b: BN] {
+    const liquidity = new Decimal((options.liquidity || new BN(100_000_000)).toString());
+    const currentPrice = new Decimal(options.currentSqrtPrice.toString());
+    const lowerPrice = new Decimal(options.lowerSqrtPrice.toString());
+    const upperPrice = new Decimal(options.upperSqrtPrice.toString());
+    let amountA: Decimal, amountB: Decimal;
+
+    if (options.currentSqrtPrice.lt(options.lowerSqrtPrice)) {
+      // x = L * (pb - pa) / (pa * pb)
+      amountA = this.math
+        .toX64_Decimal(liquidity)
+        .mul(upperPrice.sub(lowerPrice))
+        .div(lowerPrice.mul(upperPrice));
+      amountB = new Decimal(0);
+    } else if (options.currentSqrtPrice.lt(options.upperSqrtPrice)) {
+      // x = L * (pb - p) / (p * pb)
+      // y = L * (p - pa)
+      amountA = this.math
+        .toX64_Decimal(liquidity)
+        .mul(upperPrice.sub(currentPrice))
+        .div(currentPrice.mul(upperPrice));
+      amountB = this.math.fromX64_Decimal(liquidity.mul(currentPrice.sub(lowerPrice)));
+    } else {
+      // y = L * (pb - pa)
+      amountA = new Decimal(0);
+      amountB = this.math.fromX64_Decimal(liquidity.mul(upperPrice.sub(lowerPrice)));
+    }
+
+    const methodName = options.ceil !== false ? 'ceil' : 'floor';
+    return [
+      new BN(amountA[methodName]().toString()),
+      new BN(amountB[methodName]().toString()),
+    ];
+  }
+
   protected getMinimumAmountBySlippage(
-    amount: number | string | Decimal,
-    slippage: number | string | Decimal,
+    amount: Decimal.Value,
+    slippage: Decimal.Value,
   ): Decimal {
     const origin = new Decimal(amount);
     const ratio = new Decimal(1).minus(new Decimal(slippage).div(100));
@@ -471,16 +519,12 @@ export class Pool extends Base {
   }
 
   protected getTickIndex(
-    price: number | string | Decimal,
+    price: Decimal.Value,
     coinA: CoinMetadata,
     coinB: CoinMetadata,
     fee: Contract.Fee,
   ) {
-    let tick = this.math.priceToTickIndex(
-      new Decimal(price),
-      coinA.decimals,
-      coinB.decimals,
-    );
+    let tick = this.math.priceToTickIndex(price, coinA.decimals, coinB.decimals);
     tick -= tick % fee.tickSpacing;
     return tick;
   }
