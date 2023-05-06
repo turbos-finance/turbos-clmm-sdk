@@ -8,7 +8,7 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   platform: 'node',
   tsconfig: './tsconfig.json',
-  target: 'node16',
+  target: 'chrome60',
   shims: false,
   dts: true,
   legacyOutput: true,
