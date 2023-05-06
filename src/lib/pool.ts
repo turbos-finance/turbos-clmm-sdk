@@ -133,7 +133,7 @@ export class Pool extends Base {
       amount,
       coins,
     } = options;
-    const contract = this.contract.config;
+    const contract = await this.contract.getConfig();
     const [coinTypeA, coinTypeB] = coins;
     const [amountA, amountB] = amount;
     const [coinA, coinB] = await Promise.all([
@@ -157,17 +157,17 @@ export class Pool extends Base {
 
     const txb = new TransactionBlock();
     txb.moveCall({
-      target: `${contract.packageId}::pool_factory::deploy_pool_and_mint`,
+      target: `${contract.PackageId}::pool_factory::deploy_pool_and_mint`,
       typeArguments: [coinTypeA, coinTypeB, fee.type],
       arguments: [
         // pool_config
-        txb.object(contract.poolConfig),
+        txb.object(contract.PoolConfig),
         // fee_type?
         txb.object(fee.objectId),
         // sqrt_price
         txb.pure(currentSqrtPrice.toString(), 'u128'),
         // positions
-        txb.object(contract.positions),
+        txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
           objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
@@ -194,7 +194,7 @@ export class Pool extends Base {
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
-        txb.object(contract.versioned),
+        txb.object(contract.Versioned),
       ],
     });
 
@@ -213,7 +213,7 @@ export class Pool extends Base {
       signAndExecute,
       pool,
     } = options;
-    const contract = this.contract.config;
+    const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB, feeType] = typeArguments;
     const [coinA, coinB] = await Promise.all([
@@ -235,13 +235,13 @@ export class Pool extends Base {
     const maxTick = this.getTickIndex(maxPrice, coinA, coinB, fee);
 
     txb.moveCall({
-      target: `${contract.packageId}::position_manager::mint`,
+      target: `${contract.PackageId}::position_manager::mint`,
       typeArguments: typeArguments,
       arguments: [
         // pool
         txb.object(pool),
         // positions
-        txb.object(contract.positions),
+        txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
           objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
@@ -268,7 +268,7 @@ export class Pool extends Base {
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
-        txb.object(contract.versioned),
+        txb.object(contract.Versioned),
       ],
     });
 
@@ -282,7 +282,7 @@ export class Pool extends Base {
       nft,
       signAndExecute,
     } = options;
-    const contract = this.contract.config;
+    const contract = await this.contract.getConfig();
     const [{ pool_id: pool }, address] = await Promise.all([
       this.nft.getFields(nft),
       this.nft.getOwner(nft),
@@ -304,13 +304,13 @@ export class Pool extends Base {
 
     const txb = new TransactionBlock();
     txb.moveCall({
-      target: `${contract.packageId}::position_manager::increase_liquidity`,
+      target: `${contract.PackageId}::position_manager::increase_liquidity`,
       typeArguments: typeArguments,
       arguments: [
         // pool
         txb.object(pool),
         // positions
-        txb.object(contract.positions),
+        txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
           objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
@@ -331,7 +331,7 @@ export class Pool extends Base {
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
-        txb.object(contract.versioned),
+        txb.object(contract.Versioned),
       ],
     });
     return signAndExecute(txb, this.provider);
@@ -346,7 +346,7 @@ export class Pool extends Base {
       nft,
       signAndExecute,
     } = options;
-    const contract = this.contract.config;
+    const contract = await this.contract.getConfig();
     const [{ pool_id: pool }, { liquidity }] = await Promise.all([
       this.nft.getFields(nft),
       this.nft.getPositionFields(nft),
@@ -363,13 +363,13 @@ export class Pool extends Base {
 
     const txb = new TransactionBlock();
     txb.moveCall({
-      target: `${contract.packageId}::position_manager::decrease_liquidity`,
+      target: `${contract.PackageId}::position_manager::decrease_liquidity`,
       typeArguments: typeArguments,
       arguments: [
         // pool
         txb.object(pool),
         // positions
-        txb.object(contract.positions),
+        txb.object(contract.Positions),
         // nft
         txb.object(nft),
         // liquidity
@@ -382,7 +382,7 @@ export class Pool extends Base {
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
-        txb.object(contract.versioned),
+        txb.object(contract.Versioned),
       ],
     });
     return signAndExecute(txb, this.provider);

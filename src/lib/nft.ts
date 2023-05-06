@@ -51,8 +51,9 @@ export class NFT extends Base {
 
   async getPositionFields(nftId: string): Promise<NFT.PositionField> {
     return this.getCacheOrSet('nft-position-fields-' + nftId, async () => {
+      const contract = await this.contract.getConfig();
       const result = await this.provider.getDynamicFieldObject({
-        parentId: this.contract.config.positions,
+        parentId: contract.Positions,
         name: { type: 'address', value: nftId },
       });
       return getObjectFields(result) as NFT.PositionField;
