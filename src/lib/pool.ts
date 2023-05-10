@@ -6,12 +6,16 @@ import {
   SUI_CLOCK_OBJECT_ID,
   getObjectType,
   CoinMetadata,
+  getObjectFields,
+  getObjectId,
+  SuiObjectResponse,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
+import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -98,7 +102,7 @@ export declare module Pool {
     max_liquidity_per_tick: string;
     protocol_fees_a: string;
     protocol_fees_b: string;
-    reward_infos: any[];
+    reward_infos: object[];
     reward_last_updated_time_ms: string;
     sqrt_price: string;
     tick_current_index: {
@@ -114,11 +118,50 @@ export declare module Pool {
     };
     tick_spacing: number;
     unlocked: boolean;
-    version: string;
+    version: string; //?
   }
+
+  export type Types = [string, string, string];
 }
 
 export class Pool extends Base {
+  async getPools(): Promise<SuiObjectResponse[]> {
+    const contract = await this.contract.getConfig();
+    const poolFactoryIds: string[] = [];
+    let poolFactories: DynamicFieldPage | void;
+    do {
+      poolFactories = await this.provider.getDynamicFields({
+        parentId: contract.PoolTableId,
+        cursor: poolFactories?.nextCursor,
+        limit: 15,
+      });
+      poolFactoryIds.push(...poolFactories.data.map(getObjectId));
+    } while (poolFactories.hasNextPage);
+
+    if (!poolFactoryIds.length) return [];
+    const poolFactoryInfos = await this.provider.multiGetObjects({
+      ids: poolFactoryIds,
+      options: { showContent: true },
+    });
+    const poolIds = poolFactoryInfos.map((info) => {
+      const fields = getObjectFields(info) as {
+        value: {
+          fields: {
+            pool_id: string;
+            pool_key: string;
+          };
+        };
+      };
+      return fields.value.fields.pool_id;
+    });
+
+    if (!poolIds.length) return [];
+    return this.provider.multiGetObjects({
+      ids: poolIds,
+      options: { showType: true, showContent: true },
+    });
+  }
+
   async createPool(
     options: Pool.CreatePoolOptions,
   ): Promise<SuiTransactionBlockResponse> {
@@ -447,7 +490,7 @@ export class Pool extends Base {
     return origin.mul(ratio).toFixed(0);
   }
 
-  protected getPoolTypeArguments(poolId: string): Promise<[string, string, string]> {
+  protected getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
     return this.getCacheOrSet('pool-type', async () => {
       const result = await this.provider.getObject({
         id: poolId,
@@ -458,7 +501,7 @@ export class Pool extends Base {
     });
   }
 
-  protected parsePoolType(type: string): [string, string, string] {
+  protected parsePoolType(type: string): Pool.Types {
     const matched = type.match(/(\w+::\w+::\w+)/g);
     if (!matched || matched.length !== 4) {
       throw new Error('Invalid pool type');
