@@ -4,3 +4,4 @@ export * from './math';
 export * from './pool';
 export * from './nft';
 export * from './coin';
+export * from './trade';

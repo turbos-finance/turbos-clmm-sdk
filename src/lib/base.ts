@@ -52,4 +52,12 @@ export class Base {
   protected get coin() {
     return this.sdk.coin;
   }
+
+  protected get trade() {
+    return this.sdk.trade;
+  }
+
+  protected get pool() {
+    return this.sdk.pool;
+  }
 }
