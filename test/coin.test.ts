@@ -1,7 +1,6 @@
-import { JsonRpcProvider, testnetConnection } from '@mysten/sui.js';
-import { TurbosSdk, Network } from '../src';
+import { createSdk } from './helper/create-sdk';
 
-const sdk = new TurbosSdk(new JsonRpcProvider(testnetConnection), Network.testnet);
+const sdk = createSdk();
 
 test.each(['a::sui::SUI', 'a.sui', 'SUI', 'sui', 'suik'])(
   'valid sui literal',

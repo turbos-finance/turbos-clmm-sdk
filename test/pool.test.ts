@@ -1,7 +1,6 @@
-import { JsonRpcProvider, localnetConnection } from '@mysten/sui.js';
-import { Network, TurbosSdk } from '../src';
+import { createSdk } from './helper/create-sdk';
 
-const sdk = new TurbosSdk(new JsonRpcProvider(localnetConnection), Network.localnet);
+const sdk = createSdk();
 
 test('parse type arguments from pool.type', () => {
   const poolType =

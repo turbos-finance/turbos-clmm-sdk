@@ -1,9 +1,8 @@
-import { JsonRpcProvider, testnetConnection } from '@mysten/sui.js';
 import sleep from 'sleep-promise';
-import { Network, TurbosSdk } from '../src';
 import { Base } from '../src/lib/base';
+import { createSdk } from './helper/create-sdk';
 
-const sdk = new TurbosSdk(new JsonRpcProvider(testnetConnection), Network.testnet);
+const sdk = createSdk();
 
 test('get cache or set', async () => {
   class Test extends Base {
