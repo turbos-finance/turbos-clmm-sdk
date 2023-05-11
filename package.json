@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "release": "release-it --ci",
+    "release": "release-it --ci --no-increment",
     "build": "tsup",
     "prepublishOnly": "pnpm build"
   },

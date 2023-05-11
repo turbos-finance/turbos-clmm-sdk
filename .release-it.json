@@ -8,8 +8,7 @@
     "release": true
   },
   "npm": {
-    "publish": true,
-    "ignoreVersion": true
+    "publish": true
   },
   "plugins": {
     "@release-it/conventional-changelog": {
