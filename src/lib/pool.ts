@@ -333,7 +333,9 @@ export class Pool extends Base {
     return signAndExecute(txb, this.provider);
   }
 
-  async increaseLiquidity(options: Pool.IncreaseLiquidityOptions) {
+  async increaseLiquidity(
+    options: Pool.IncreaseLiquidityOptions,
+  ): Promise<SuiTransactionBlockResponse> {
     const {
       amount: [amountA, amountB],
       slippage,
