@@ -33,20 +33,16 @@ export class Contract extends Base {
       const fees = contractJSON[this.network].fee;
       const objs = await this.provider.multiGetObjects({
         ids: Object.values(fees),
-        options: { showType: true, showContent: true },
+        options: { showContent: true },
       });
       return objs.map((obj) => {
         const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };
         const objectId = getObjectId(obj);
-        let type = getMoveObjectType(obj)!;
-        const [_, matched] = type.match(/\<([^)]*)\>/) || [];
-        if (matched) {
-          type = matched.split(/\s*,\s*/, 1).pop()!;
-        }
+        const type = getMoveObjectType(obj)!;
         return {
-          fee: fields.fee,
           objectId,
-          type,
+          type: type.split('<')[1]!.slice(0, -1),
+          fee: fields.fee,
           tickSpacing: fields.tick_spacing,
         };
       });
