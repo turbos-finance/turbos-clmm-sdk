@@ -41,7 +41,7 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "@mysten/sui.js": "^0.32.1"
+    "@mysten/sui.js": ">=0.33.0"
   },
   "dependencies": {
     "@scure/bip39": "^1.2.0",
