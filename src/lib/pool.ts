@@ -195,8 +195,8 @@ export class Pool extends Base {
     const [coinTypeA, coinTypeB] = coins;
     const [amountA, amountB] = amount;
     const [coinA, coinB] = await Promise.all([
-      this.provider.getCoinMetadata({ coinType: coinTypeA }),
-      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
     const currentSqrtPrice = this.math.priceToSqrtPriceX64(
@@ -275,8 +275,8 @@ export class Pool extends Base {
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB, feeType] = typeArguments;
     const [coinA, coinB] = await Promise.all([
-      this.provider.getCoinMetadata({ coinType: coinTypeA }),
-      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
     const txb = new TransactionBlock();
@@ -351,8 +351,8 @@ export class Pool extends Base {
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
-      this.provider.getCoinMetadata({ coinType: coinTypeA }),
-      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
@@ -414,10 +414,9 @@ export class Pool extends Base {
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
-      this.provider.getCoinMetadata({ coinType: coinTypeA }),
-      this.provider.getCoinMetadata({ coinType: coinTypeB }),
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
     ]);
-    if (!coinA || !coinB) throw new Error('Invalid coin type');
     const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
     const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
 

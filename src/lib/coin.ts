@@ -12,6 +12,16 @@ export class Coin extends Base {
     return coinType.toLowerCase().indexOf('sui') > -1;
   }
 
+  async getMetadata(coinType: string) {
+    return this.getCacheOrSet('coin-metadata', async () => {
+      const result = await this.provider.getCoinMetadata({ coinType });
+      if (!result) {
+        throw new Error(`Coin "${coinType}" is not found`);
+      }
+      return result;
+    });
+  }
+
   async selectTradeCoins(
     owner: SuiAddress,
     coinType: string,

@@ -28,8 +28,7 @@ export class Trade extends Base {
       options;
     const contract = await this.contract.getConfig();
     const [coinTypeA, coinTypeB] = coins;
-    const coinA = await this.provider.getCoinMetadata({ coinType: coinTypeA });
-    if (!coinA) throw new Error('Invalid coin type');
+    const coinA = await this.coin.getMetadata(coinTypeA);
     const bigAmountA = this.math.scaleUp(amount, coinA.decimals);
     const coinIds = await this.coin.selectTradeCoins(address, coinTypeA, bigAmountA);
     const { functionName, typeArguments } = this.getFunctionNameAndTypeArguments(
