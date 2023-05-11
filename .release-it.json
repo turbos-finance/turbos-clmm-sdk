@@ -1,6 +1,6 @@
 {
   "git": {
-    "push": false,
+    "push": true,
     "commitMessage": "chore: bump version v${version}",
     "requireBranch": "main"
   },
