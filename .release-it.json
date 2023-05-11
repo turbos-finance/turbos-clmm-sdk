@@ -1,0 +1,19 @@
+{
+  "git": {
+    "push": false,
+    "commitMessage": "chore: bump version v${version}",
+    "requireBranch": "main"
+  },
+  "github": {
+    "release": true
+  },
+  "npm": {
+    "publish": true
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "angular",
+      "infile": "CHANGELOG.md"
+    }
+  }
+}
