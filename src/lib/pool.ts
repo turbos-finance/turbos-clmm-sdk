@@ -8,7 +8,6 @@ import {
   CoinMetadata,
   getObjectFields,
   getObjectId,
-  SuiObjectResponse,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
@@ -118,14 +117,19 @@ export declare module Pool {
     };
     tick_spacing: number;
     unlocked: boolean;
-    version: string; //?
   }
 
   export type Types = [string, string, string];
+
+  export interface Pool extends PoolFields {
+    objectId: string;
+    type: string;
+    types: Types;
+  }
 }
 
 export class Pool extends Base {
-  async getPools(): Promise<SuiObjectResponse[]> {
+  async getPools(): Promise<Pool.Pool[]> {
     const contract = await this.contract.getConfig();
     const poolFactoryIds: string[] = [];
     let poolFactories: DynamicFieldPage | void;
@@ -156,9 +160,20 @@ export class Pool extends Base {
     });
 
     if (!poolIds.length) return [];
-    return this.provider.multiGetObjects({
+    const pools = await this.provider.multiGetObjects({
       ids: poolIds,
-      options: { showType: true, showContent: true },
+      options: { showContent: true },
+    });
+    return pools.map((pool) => {
+      const fields = getObjectFields(pool) as Pool.PoolFields;
+      const objectId = getObjectId(pool);
+      const type = getObjectType(pool)!;
+      return {
+        ...fields,
+        objectId,
+        type,
+        types: this.parsePoolType(type),
+      };
     });
   }
 
