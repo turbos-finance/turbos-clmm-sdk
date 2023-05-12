@@ -168,6 +168,7 @@ export class Pool extends Base {
       const fields = getObjectFields(pool) as Pool.PoolFields;
       const objectId = getObjectId(pool);
       const type = getObjectType(pool)!;
+      this.getCacheOrSet('pool-type-' + objectId, async () => type);
       return {
         ...fields,
         objectId,
@@ -506,15 +507,16 @@ export class Pool extends Base {
     return origin.mul(ratio).toFixed(0);
   }
 
-  protected getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
-    return this.getCacheOrSet('pool-type', async () => {
+  protected async getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
+    const type = await this.getCacheOrSet('pool-type-' + poolId, async () => {
       const result = await this.provider.getObject({
         id: poolId,
         options: { showType: true },
       });
       validateObjectResponse(result, 'pool');
-      return this.parsePoolType(getObjectType(result)!);
+      return getObjectType(result)!;
     });
+    return this.parsePoolType(type);
   }
 
   protected parsePoolType(type: string): Pool.Types {
