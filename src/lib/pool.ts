@@ -15,6 +15,7 @@ import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
 import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields';
+import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -535,6 +536,6 @@ export class Pool extends Base {
   ) {
     let tick = this.math.priceToTickIndex(price, coinA.decimals, coinB.decimals);
     tick -= tick % fee.tickSpacing;
-    return tick;
+    return Math.min(Math.max(tick, MIN_TICK_INDEX), MAX_TICK_INDEX);
   }
 }
