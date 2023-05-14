@@ -130,7 +130,11 @@ export declare module Pool {
 }
 
 export class Pool extends Base {
-  async getPools(): Promise<Pool.Pool[]> {
+  /**
+   * Get Turbos unlocked pools
+   * @param withLocked Defaults `false`
+   */
+  async getPools(withLocked: boolean = false): Promise<Pool.Pool[]> {
     const contract = await this.contract.getConfig();
     const poolFactoryIds: string[] = [];
     let poolFactories: DynamicFieldPage | void;
@@ -161,10 +165,18 @@ export class Pool extends Base {
     });
 
     if (!poolIds.length) return [];
-    const pools = await this.provider.multiGetObjects({
+    let pools = await this.provider.multiGetObjects({
       ids: poolIds,
       options: { showContent: true },
     });
+
+    if (!withLocked) {
+      pools = pools.filter((pool) => {
+        const fields = getObjectFields(pool) as Pool.PoolFields;
+        return fields.unlocked;
+      });
+    }
+
     return pools.map((pool) => {
       const fields = getObjectFields(pool) as Pool.PoolFields;
       const objectId = getObjectId(pool);
