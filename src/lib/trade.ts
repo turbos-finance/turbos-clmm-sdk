@@ -2,6 +2,7 @@ import { SUI_CLOCK_OBJECT_ID, SuiAddress, TransactionBlock } from '@mysten/sui.j
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
+import { MIN_TICK_INDEX, MAX_TICK_INDEX } from '../constants';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -19,6 +20,21 @@ export declare module Trade {
     amount: Decimal.Value;
     amountThreshold: Decimal.Value;
     exactIn: boolean;
+  }
+
+  export interface ComputedSwapResult {
+    a_to_b: boolean;
+    amount_a: string;
+    amount_b: string;
+    fee_amount: string;
+    is_exact_in: boolean;
+    liquidity: string;
+    pool: string;
+    protocol_fee: string;
+    recipient: string;
+    sqrt_price: string;
+    tick_current_index: { bits: number };
+    tick_pre_index: { bits: number };
   }
 }
 
@@ -56,6 +72,61 @@ export class Trade extends Base {
         txb.object(contract.Versioned),
       ],
     });
+  }
+
+  async computeSwapResult(options: {
+    pool: string;
+    coin: string;
+    address: SuiAddress;
+    amountSpecified: Decimal.Value;
+    amountSpecifiedIsInput: boolean;
+  }): Promise<Trade.ComputedSwapResult> {
+    const {
+      pool,
+      coin: coinType,
+      amountSpecified,
+      amountSpecifiedIsInput,
+      address,
+    } = options;
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.pool['getPoolTypeArguments'](pool);
+    const a2b = coinType === typeArguments[0];
+
+    const txb = new TransactionBlock();
+    txb.moveCall({
+      target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // a_to_b
+        txb.pure(a2b, 'bool'),
+        // amount_specified
+        txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
+        // amount_specified_is_input
+        txb.pure(amountSpecifiedIsInput, 'bool'),
+        // sqrt_price_limit
+        txb.pure(
+          this.math
+            .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
+            .toString(),
+          'u128',
+        ),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    const result = await this.provider.devInspectTransactionBlock({
+      transactionBlock: txb,
+      sender: address,
+    });
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.events[0]!.parsedJson as Trade.ComputedSwapResult;
   }
 
   protected getFunctionNameAndTypeArguments(
