@@ -94,6 +94,18 @@ export class MathUtil {
     }
   }
 
+  public tickIndexToPrice(
+    tickIndex: number,
+    decimalsA: number,
+    decimalsB: number,
+  ): Decimal {
+    return this.sqrtPriceX64ToPrice(
+      this.tickIndexToSqrtPriceX64(tickIndex),
+      decimalsA,
+      decimalsB,
+    );
+  }
+
   toX64_Decimal(num: Decimal): Decimal {
     return num.mul(Decimal.pow(2, 64));
   }
