@@ -25,8 +25,8 @@ devDependencies:
     specifier: ^17.6.3
     version: 17.6.3
   '@mysten/sui.js':
-    specifier: ^0.33.0
-    version: 0.33.0
+    specifier: ^0.34.1
+    version: 0.34.1
   '@release-it/conventional-changelog':
     specifier: ^5.1.1
     version: 5.1.1(release-it@15.10.3)
@@ -542,8 +542,8 @@ packages:
       bs58: 5.0.0
     dev: true
 
-  /@mysten/sui.js@0.33.0:
-    resolution: {integrity: sha512-vPswzowPoxYmexN+jKrSQ5uKWv8AoX30c11t8VAODCCXeCziq7Y27TEcYFsQmWJBIMU/hYw75kGj9oorJyXyKw==}
+  /@mysten/sui.js@0.34.1:
+    resolution: {integrity: sha512-t22i9b3UJW2ZJ7JPD7kSsrr2KxLsDUeV2UsOWbkrj9AiYm2oxIfzF1yzKUJBFcE4RCKDYuKt7nMatXD9aO4+yw==}
     engines: {node: '>=16'}
     dependencies:
       '@mysten/bcs': 0.7.1
