@@ -1,2 +1,2 @@
 export * from './network';
-export * from './tick-index';
+export * from './magic-numbers';

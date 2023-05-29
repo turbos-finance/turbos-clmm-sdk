@@ -2,24 +2,26 @@ import { SUI_CLOCK_OBJECT_ID, SuiAddress, TransactionBlock } from '@mysten/sui.j
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
-import { MIN_TICK_INDEX, MAX_TICK_INDEX } from '../constants';
+import {
+  MIN_TICK_INDEX,
+  MAX_TICK_INDEX,
+  MIN_SQRT_PRICE,
+  MAX_SQRT_PRICE,
+} from '../constants';
+import { BN } from 'bn.js';
 
 const ONE_MINUTE = 60 * 1000;
 
 export declare module Trade {
   export interface SwapOptions {
-    pools: [singlePool: string] | [firstPool: string, secondPool: string];
-    priceLimit:
-      | [singlePool: Decimal.Value]
-      | [firstPool: Decimal.Value, secondPool: Decimal.Value];
-    /**
-     * Coin type such as `0x2::sui::SUI`
-     */
-    coins: [a: string, b: string];
+    routes: { pool: string; aToB: boolean; nextTickIndex: number }[];
+    coinTypeA: string;
+    coinTypeB: string;
     address: SuiAddress;
-    amount: Decimal.Value;
-    amountThreshold: Decimal.Value;
-    exactIn: boolean;
+    amountIn: Decimal.Value;
+    amountOut: Decimal.Value;
+    amountSpecifiedIsInput: boolean;
+    slippage: string;
   }
 
   export interface ComputedSwapResult {
@@ -40,17 +42,47 @@ export declare module Trade {
 
 export class Trade extends Base {
   async swap(options: Trade.SwapOptions) {
-    const { pools, priceLimit, coins, address, amount, amountThreshold, exactIn } =
+    const { coinTypeA, coinTypeB, address, amountOut, amountSpecifiedIsInput, slippage } =
       options;
     const contract = await this.contract.getConfig();
-    const [coinTypeA, coinTypeB] = coins;
-    const coinA = await this.coin.getMetadata(coinTypeA);
-    const bigAmountA = this.math.scaleUp(amount, coinA.decimals);
-    const coinIds = await this.coin.selectTradeCoins(address, coinTypeA, bigAmountA);
+    const amountIn = new Decimal(options.amountIn);
+    const routes = await Promise.all(
+      options.routes.map(async (item) => {
+        const typeArguments = await this.pool['getPoolTypeArguments'](item.pool);
+        const [coinA, coinB] = await Promise.all([
+          this.coin.getMetadata(typeArguments[0]),
+          this.coin.getMetadata(typeArguments[1]),
+        ]);
+        return {
+          ...item,
+          coinA,
+          coinB,
+          typeArguments: typeArguments,
+        };
+      }),
+    );
+    const coinIds = await this.coin.selectTradeCoins(address, coinTypeA, amountIn);
     const { functionName, typeArguments } = this.getFunctionNameAndTypeArguments(
-      await Promise.all(pools.map((pool) => this.pool['getPoolTypeArguments'](pool))),
+      routes.map(({ typeArguments }) => typeArguments),
       coinTypeA,
       coinTypeB,
+    );
+
+    const sqrtPrices = await Promise.all(
+      routes.map(async ({ nextTickIndex, coinA, coinB, aToB }) => {
+        const nextTickPrice = this.math.tickIndexToPrice(
+          nextTickIndex,
+          coinA.decimals,
+          coinB.decimals,
+        );
+        return this.sqrtPriceWithSlippage(
+          nextTickPrice,
+          slippage,
+          aToB,
+          coinA.decimals,
+          coinB.decimals,
+        );
+      }),
     );
 
     const txb = new TransactionBlock();
@@ -58,14 +90,17 @@ export class Trade extends Base {
       target: `${contract.PackageId}::swap_router::${functionName}`,
       typeArguments: typeArguments,
       arguments: [
-        ...pools.map((pool) => txb.object(pool)),
+        ...routes.map(({ pool }) => txb.object(pool)),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, amountIn),
         }),
-        txb.pure(bigAmountA.toFixed(0), 'u64'),
-        txb.pure(new Decimal(amountThreshold).toFixed(0), 'u64'),
-        ...priceLimit.map((price) => txb.pure(price, 'u128')),
-        txb.pure(exactIn, 'bool'),
+        txb.pure(amountIn.toFixed(0), 'u64'),
+        txb.pure(
+          this.amountOutWithSlippage(amountOut, slippage, amountSpecifiedIsInput),
+          'u64',
+        ),
+        ...sqrtPrices.map((price) => txb.pure(price, 'u128')),
+        txb.pure(amountSpecifiedIsInput, 'bool'),
         txb.object(address),
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         txb.object(SUI_CLOCK_OBJECT_ID),
@@ -76,21 +111,14 @@ export class Trade extends Base {
 
   async computeSwapResult(options: {
     pool: string;
-    coin: string;
+    a2b: boolean;
     address: SuiAddress;
     amountSpecified: Decimal.Value;
     amountSpecifiedIsInput: boolean;
   }): Promise<Trade.ComputedSwapResult> {
-    const {
-      pool,
-      coin: coinType,
-      amountSpecified,
-      amountSpecifiedIsInput,
-      address,
-    } = options;
+    const { pool, a2b, amountSpecified, amountSpecifiedIsInput, address } = options;
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool['getPoolTypeArguments'](pool);
-    const a2b = coinType === typeArguments[0];
 
     const txb = new TransactionBlock();
     txb.moveCall({
@@ -166,5 +194,42 @@ export class Trade extends Base {
       functionName: functionName.join('_'),
       typeArguments,
     };
+  }
+
+  protected amountOutWithSlippage(
+    amountOut: Decimal.Value,
+    slippage: string,
+    amountSpecifiedIsInput: boolean,
+  ) {
+    if (amountSpecifiedIsInput) {
+      const minus = new Decimal(100).minus(slippage).div(100);
+      return new Decimal(amountOut).mul(minus).toFixed(0);
+    }
+
+    const plus = new Decimal(100).plus(slippage).div(100);
+    return new Decimal(amountOut).mul(plus).toFixed(0);
+  }
+
+  protected sqrtPriceWithSlippage(
+    price: Decimal.Value,
+    slippage: string,
+    a2b: boolean,
+    decimalsA: number,
+    decimalsB: number,
+  ): string {
+    const newPrice = new Decimal(price).mul(
+      a2b
+        ? new Decimal(100).minus(slippage).div(100)
+        : new Decimal(100).plus(slippage).div(100),
+    );
+    const sqrtPrice = this.math.priceToSqrtPriceX64(newPrice, decimalsA, decimalsB);
+
+    if (sqrtPrice.lt(new BN(MIN_SQRT_PRICE))) {
+      return MIN_SQRT_PRICE;
+    }
+    if (sqrtPrice.gt(new BN(MAX_SQRT_PRICE))) {
+      return MAX_SQRT_PRICE;
+    }
+    return sqrtPrice.toString();
   }
 }

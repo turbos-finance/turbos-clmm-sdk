@@ -48,6 +48,7 @@
     "@types/bn.js": "^5.1.1",
     "bn.js": "^5.2.1",
     "decimal.js": "^10.4.3",
+    "jsbi": "^4.3.0",
     "lru-cache": "^9.1.1"
   },
   "devDependencies": {

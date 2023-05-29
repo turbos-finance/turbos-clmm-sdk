@@ -1,12 +1,14 @@
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
-
-const MAX_SQRT_PRICE = '79226673515401279992447579055';
-const MIN_SQRT_PRICE = '4295048016';
-const BIT_PRECISION = 14;
-const LOG_B_2_X32 = '59543866431248';
-const LOG_B_P_ERR_MARGIN_LOWER_X64 = '184467440737095516';
-const LOG_B_P_ERR_MARGIN_UPPER_X64 = '15793534762490258745';
+import JSBI from 'jsbi';
+import {
+  BIT_PRECISION,
+  LOG_B_2_X32,
+  LOG_B_P_ERR_MARGIN_LOWER_X64,
+  LOG_B_P_ERR_MARGIN_UPPER_X64,
+  MAX_SQRT_PRICE,
+  MIN_SQRT_PRICE,
+} from '../constants';
 
 export class MathUtil {
   priceToSqrtPriceX64(price: Decimal.Value, decimalsA: number, decimalsB: number): BN {
@@ -120,6 +122,10 @@ export class MathUtil {
 
   scaleUp(value: Decimal.Value, decimals: number) {
     return new Decimal(value).mul(Decimal.pow(10, decimals));
+  }
+
+  bitsToNumber(bits: number | string, len: number = 32) {
+    return JSBI.toNumber(JSBI.asIntN(len, JSBI.BigInt(bits)));
   }
 
   protected tickIndexToSqrtPricePositive(tick: number) {
