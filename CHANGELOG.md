@@ -1,5 +1,31 @@
 
 
+## [0.1.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.2...0.1.3) (2023-05-29)
+
+
+### Bug Fixes
+
+* remove type=module for developers who want to use cjs ([a6881de](https://github.com/turbos-finance/turbos-clmm-sdk/commit/a6881de3daefcbe25b8964a994a6470c40ad8612))
+
+
+
+## [0.1.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.2...0.1.3) (2023-05-29)
+
+
+### Bug Fixes
+
+* sdk constructor in test file ([8e81a25](https://github.com/turbos-finance/turbos-clmm-sdk/commit/8e81a254fd1d22e864b64b5bd8c842085d4afb01))
+* **trade:** remove Promise.all ([5aec895](https://github.com/turbos-finance/turbos-clmm-sdk/commit/5aec895af6b21038192d676abe52103231e0a6bc))
+
+
+### Features
+
+* export all constant variables ([743a8eb](https://github.com/turbos-finance/turbos-clmm-sdk/commit/743a8eb42596e517927e544e2c552eb296c98417))
+* **math:** add method tickIndexToPrice ([09cf794](https://github.com/turbos-finance/turbos-clmm-sdk/commit/09cf79469dd9238a137bccab43ac1ac18570963f))
+* support devnet network ([1456f26](https://github.com/turbos-finance/turbos-clmm-sdk/commit/1456f26af309b75d09f9ebec12e075413ba8e0a9))
+* **trade:** add swap option signAndExecute ([da5e1f0](https://github.com/turbos-finance/turbos-clmm-sdk/commit/da5e1f09f8623490f1fb80afb5657be7fc1f1797))
+* **trade:** update swap options ([deea71e](https://github.com/turbos-finance/turbos-clmm-sdk/commit/deea71e56961b1b11a5a7b326aabc9f3ac5c4d21))
+
 ## [0.1.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.2...0.1.3) (2023-05-29)
 
 
