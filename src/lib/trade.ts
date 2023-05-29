@@ -51,7 +51,7 @@ export declare module Trade {
 }
 
 export class Trade extends Base {
-  async swap(options: Trade.SwapOptions) {
+  async swap(options: Trade.SwapOptions): Promise<SuiTransactionBlockResponse> {
     const {
       coinTypeA,
       coinTypeB,
@@ -85,22 +85,20 @@ export class Trade extends Base {
       coinTypeB,
     );
 
-    const sqrtPrices = await Promise.all(
-      routes.map(async ({ nextTickIndex, coinA, coinB, aToB }) => {
-        const nextTickPrice = this.math.tickIndexToPrice(
-          nextTickIndex,
-          coinA.decimals,
-          coinB.decimals,
-        );
-        return this.sqrtPriceWithSlippage(
-          nextTickPrice,
-          slippage,
-          aToB,
-          coinA.decimals,
-          coinB.decimals,
-        );
-      }),
-    );
+    const sqrtPrices = routes.map(async ({ nextTickIndex, coinA, coinB, aToB }) => {
+      const nextTickPrice = this.math.tickIndexToPrice(
+        nextTickIndex,
+        coinA.decimals,
+        coinB.decimals,
+      );
+      return this.sqrtPriceWithSlippage(
+        nextTickPrice,
+        slippage,
+        aToB,
+        coinA.decimals,
+        coinB.decimals,
+      );
+    });
 
     const txb = new TransactionBlock();
     txb.moveCall({
