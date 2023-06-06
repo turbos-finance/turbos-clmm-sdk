@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest",
-    "release": "release-it --ci --no-increment",
+    "release": "release-it --ci",
     "build": "tsup",
     "prepublishOnly": "pnpm build"
   },
