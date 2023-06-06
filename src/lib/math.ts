@@ -10,6 +10,8 @@ import {
   MIN_SQRT_PRICE,
 } from '../constants';
 
+const U128 = new BN(2).pow(new BN(128));
+
 export class MathUtil {
   priceToSqrtPriceX64(price: Decimal.Value, decimalsA: number, decimalsB: number): BN {
     return new BN(
@@ -126,6 +128,10 @@ export class MathUtil {
 
   bitsToNumber(bits: number | string, len: number = 32) {
     return JSBI.toNumber(JSBI.asIntN(len, JSBI.BigInt(bits)));
+  }
+
+  subUnderflowU128(n0: BN, n1: BN): BN {
+    return n0.add(U128).sub(n1).mod(U128);
   }
 
   protected tickIndexToSqrtPricePositive(tick: number) {
