@@ -17,10 +17,13 @@ export declare module NFT {
     fee_growth_inside_b: string;
     id: { id: string };
     liquidity: string;
-    reward_infos: Array<{
+    reward_infos: {
       type: string;
-      fields: object[];
-    }>;
+      fields: {
+        amount_owed: string;
+        reward_growth_inside: string;
+      };
+    }[];
     tick_lower_index: {
       type: string;
       fields: { bits: number };
