@@ -1,5 +1,17 @@
 
 
+# [0.2.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.4...0.2.0) (2023-06-06)
+
+
+### Bug Fixes
+
+* **nft:** reward_infos type definition ([40f1f0c](https://github.com/turbos-finance/turbos-clmm-sdk/commit/40f1f0c6e3560aee1ba7ef2e66af81ea0accdd94))
+
+
+### Features
+
+* **matH:** add method subUnderflowU128 ([a1b1600](https://github.com/turbos-finance/turbos-clmm-sdk/commit/a1b16000ee2fdbbdd7644efb798cc5fedd86a9ab))
+
 ## [0.1.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.2...0.1.3) (2023-05-29)
 
 
