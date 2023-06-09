@@ -1,5 +1,12 @@
 
 
+# [0.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.2.0...0.3.0) (2023-06-09)
+
+
+### Features
+
+* transaction methods only returning block instance ([e3c32ce](https://github.com/turbos-finance/turbos-clmm-sdk/commit/e3c32ce310d929506d7b15884c0acbae58711ffb))
+
 # [0.2.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.1.4...0.2.0) (2023-06-06)
 
 
