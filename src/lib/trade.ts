@@ -1,10 +1,4 @@
-import {
-  JsonRpcProvider,
-  SUI_CLOCK_OBJECT_ID,
-  SuiAddress,
-  SuiTransactionBlockResponse,
-  TransactionBlock,
-} from '@mysten/sui.js';
+import { SUI_CLOCK_OBJECT_ID, SuiAddress, TransactionBlock } from '@mysten/sui.js';
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
@@ -28,10 +22,7 @@ export declare module Trade {
     amountOut: Decimal.Value;
     amountSpecifiedIsInput: boolean;
     slippage: string;
-    signAndExecute: (
-      txb: TransactionBlock,
-      provider: JsonRpcProvider,
-    ) => Promise<SuiTransactionBlockResponse>;
+    txb?: TransactionBlock;
   }
 
   export interface ComputedSwapResult {
@@ -51,21 +42,14 @@ export declare module Trade {
 }
 
 export class Trade extends Base {
-  async swap(options: Trade.SwapOptions): Promise<SuiTransactionBlockResponse> {
-    const {
-      coinTypeA,
-      coinTypeB,
-      address,
-      amountOut,
-      amountSpecifiedIsInput,
-      slippage,
-      signAndExecute,
-    } = options;
+  async swap(options: Trade.SwapOptions): Promise<TransactionBlock> {
+    const { coinTypeA, coinTypeB, address, amountOut, amountSpecifiedIsInput, slippage } =
+      options;
     const contract = await this.contract.getConfig();
     const amountIn = new Decimal(options.amountIn);
     const routes = await Promise.all(
       options.routes.map(async (item) => {
-        const typeArguments = await this.pool['getPoolTypeArguments'](item.pool);
+        const typeArguments = await this.pool.getPoolTypeArguments(item.pool);
         const [coinA, coinB] = await Promise.all([
           this.coin.getMetadata(typeArguments[0]),
           this.coin.getMetadata(typeArguments[1]),
@@ -100,7 +84,7 @@ export class Trade extends Base {
       );
     });
 
-    const txb = new TransactionBlock();
+    const txb = options.txb || new TransactionBlock();
     txb.moveCall({
       target: `${contract.PackageId}::swap_router::${functionName}`,
       typeArguments: typeArguments,
@@ -123,7 +107,7 @@ export class Trade extends Base {
       ],
     });
 
-    return signAndExecute(txb, this.provider);
+    return txb;
   }
 
   async computeSwapResult(options: {

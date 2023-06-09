@@ -1,13 +1,11 @@
 import {
   TransactionBlock,
-  JsonRpcProvider,
   SuiAddress,
-  SuiTransactionBlockResponse,
   SUI_CLOCK_OBJECT_ID,
   getObjectType,
-  CoinMetadata,
   getObjectFields,
   getObjectId,
+  SuiObjectResponse,
 } from '@mysten/sui.js';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
@@ -15,45 +13,31 @@ import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
 import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields';
-import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 
 const ONE_MINUTE = 60 * 1000;
 
 export declare module Pool {
   export interface MintParams {
-    amount: [a: Decimal.Value, b: Decimal.Value];
+    /**
+     * Pool ID
+     */
+    pool: string;
+    address: SuiAddress;
+    amountA: string | number;
+    amountB: string | number;
     /**
      * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
      */
-    slippage: Decimal.Value;
-    /**
-     * Execute transaction by signer
-     * ```typescript
-     * import { RawSigner } from '@mysten/sui.js';
-     * {
-     *   signAndExecute(txb, provider) {
-     *     const mnemonic = sdk.account.generateMnemonic(); // OR from your own
-     *     const keypair = sdk.account.getKeypairFromMnemonics(mnemonic);
-     *     const signer = new RawSigner(keypair, provider);
-     *     return signer.signAndExecuteTransactionBlock(txb);
-     *   },
-     * }
-     * ```
-     * @see RawSigner
-     */
-    signAndExecute: (
-      txb: TransactionBlock,
-      provider: JsonRpcProvider,
-    ) => Promise<SuiTransactionBlockResponse>;
+    slippage: string | number;
+    txb?: TransactionBlock;
   }
 
   export interface LiquidityParams {
-    address: SuiAddress;
-    minPrice: Decimal.Value;
-    maxPrice: Decimal.Value;
+    tickLower: number;
+    tickUpper: number;
   }
 
-  export interface CreatePoolOptions extends MintParams, LiquidityParams {
+  export interface CreatePoolOptions extends Omit<MintParams, 'pool'>, LiquidityParams {
     /**
      * Fee object from `sdk.contract.getFees()`
      */
@@ -61,16 +45,12 @@ export declare module Pool {
     /**
      * Coin type such as `0x2::sui::SUI`
      */
-    coins: [a: string, b: string];
-    currentPrice: Decimal.Value;
+    coinTypeA: string;
+    coinTypeB: string;
+    sqrtPrice: string;
   }
 
-  export interface AddLiquidityOptions extends MintParams, LiquidityParams {
-    /**
-     * Pool ID
-     */
-    pool: string;
-  }
+  export interface AddLiquidityOptions extends MintParams, LiquidityParams {}
 
   export interface IncreaseLiquidityOptions extends MintParams {
     /**
@@ -84,6 +64,31 @@ export declare module Pool {
      * NFT ID
      */
     nft: string;
+    decreaseLiquidity: string | number;
+  }
+
+  export interface RemoveLiquidityOptions
+    extends DecreaseLiquidityOptions,
+      CollectFeeOptions,
+      CollectRewardOptions {}
+
+  export interface CollectFeeOptions
+    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address'> {
+    /**
+     * NFT ID
+     */
+    nft: string;
+    collectAmountA: string | number;
+    collectAmountB: string | number;
+  }
+
+  export interface CollectRewardOptions
+    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address'> {
+    /**
+     * NFT ID
+     */
+    nft: string;
+    rewardAmounts: (string | number)[];
   }
 
   /**
@@ -102,7 +107,19 @@ export declare module Pool {
     max_liquidity_per_tick: string;
     protocol_fees_a: string;
     protocol_fees_b: string;
-    reward_infos: object[];
+    reward_infos: {
+      type: string;
+      fields: {
+        emissions_per_second: string;
+        growth_global: string;
+        id: {
+          id: string;
+        };
+        manager: string;
+        vault: string;
+        vault_coin_type: string;
+      };
+    }[];
     reward_last_updated_time_ms: string;
     sqrt_price: string;
     tick_current_index: {
@@ -177,57 +194,38 @@ export class Pool extends Base {
       });
     }
 
-    return pools.map((pool) => {
-      const fields = getObjectFields(pool) as Pool.PoolFields;
-      const objectId = getObjectId(pool);
-      const type = getObjectType(pool)!;
-      this.getCacheOrSet('pool-type-' + objectId, async () => type);
-      return {
-        ...fields,
-        objectId,
-        type,
-        types: this.parsePoolType(type),
-      };
-    });
+    return pools.map((pool) => this.parsePool(pool));
   }
 
-  async createPool(
-    options: Pool.CreatePoolOptions,
-  ): Promise<SuiTransactionBlockResponse> {
+  async getPool(poolId: string) {
+    const result = await this.provider.getObject({
+      id: poolId,
+      options: { showContent: true },
+    });
+    validateObjectResponse(result, 'pool');
+    return this.parsePool(result);
+  }
+
+  async createPool(options: Pool.CreatePoolOptions): Promise<TransactionBlock> {
     const {
       fee,
       address,
-      minPrice,
-      maxPrice,
-      currentPrice,
+      tickLower,
+      tickUpper,
+      sqrtPrice,
       slippage,
-      signAndExecute,
-      amount,
-      coins,
+      coinTypeA,
+      coinTypeB,
     } = options;
     const contract = await this.contract.getConfig();
-    const [coinTypeA, coinTypeB] = coins;
-    const [amountA, amountB] = amount;
-    const [coinA, coinB] = await Promise.all([
-      this.coin.getMetadata(coinTypeA),
-      this.coin.getMetadata(coinTypeB),
-    ]);
-    if (!coinA || !coinB) throw new Error('Invalid coin type');
-    const currentSqrtPrice = this.math.priceToSqrtPriceX64(
-      currentPrice,
-      coinA.decimals,
-      coinB.decimals,
-    );
-    const minTick = this.getTickIndex(minPrice, coinA, coinB, fee);
-    const maxTick = this.getTickIndex(maxPrice, coinA, coinB, fee);
-    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
-    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
-      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, amountA),
+      this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = new TransactionBlock();
+    const txb = options.txb || new TransactionBlock();
     txb.moveCall({
       target: `${contract.PackageId}::pool_factory::deploy_pool_and_mint`,
       typeArguments: [coinTypeA, coinTypeB, fee.type],
@@ -237,28 +235,28 @@ export class Pool extends Base {
         // fee_type?
         txb.object(fee.objectId),
         // sqrt_price
-        txb.pure(currentSqrtPrice.toString(), 'u128'),
+        txb.pure(sqrtPrice, 'u128'),
         // positions
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
         }),
         // tick_lower_index
-        txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
-        txb.pure(minTick < 0, 'bool'),
+        txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
+        txb.pure(tickLower < 0, 'bool'),
         // tick_upper_index
-        txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
-        txb.pure(maxTick < 0, 'bool'),
+        txb.pure(Math.abs(tickUpper).toFixed(0), 'u32'),
+        txb.pure(tickUpper < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toFixed(0), 'u64'),
-        txb.pure(bigAmountB.toFixed(0), 'u64'),
+        txb.pure(amountA.toFixed(0), 'u64'),
+        txb.pure(amountB.toFixed(0), 'u64'),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -270,41 +268,27 @@ export class Pool extends Base {
       ],
     });
 
-    return signAndExecute(txb, this.provider);
+    return txb;
   }
 
-  async addLiquidity(
-    options: Pool.AddLiquidityOptions,
-  ): Promise<SuiTransactionBlockResponse> {
-    const {
-      address,
-      amount: [amountA, amountB],
-      minPrice,
-      maxPrice,
-      slippage,
-      signAndExecute,
-      pool,
-    } = options;
+  async addLiquidity(options: Pool.AddLiquidityOptions): Promise<TransactionBlock> {
+    const { address, tickLower, tickUpper, slippage, pool } = options;
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
-    const [coinTypeA, coinTypeB, feeType] = typeArguments;
+    const [coinTypeA, coinTypeB] = typeArguments;
     const [coinA, coinB] = await Promise.all([
       this.coin.getMetadata(coinTypeA),
       this.coin.getMetadata(coinTypeB),
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
-    const txb = new TransactionBlock();
-    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
-    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
-      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, amountA),
+      this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const fees = await this.contract.getFees();
-    const fee = fees.find((item) => item.type === feeType)!;
-    const minTick = this.getTickIndex(minPrice, coinA, coinB, fee);
-    const maxTick = this.getTickIndex(maxPrice, coinA, coinB, fee);
+    const txb = options.txb || new TransactionBlock();
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -316,23 +300,23 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
         }),
         // tick_lower_index
-        txb.pure(Math.abs(minTick).toFixed(0), 'u32'),
-        txb.pure(minTick < 0, 'bool'),
+        txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
+        txb.pure(tickLower < 0, 'bool'),
         // tick_upper_index
-        txb.pure(Math.abs(maxTick).toFixed(0), 'u32'),
-        txb.pure(maxTick < 0, 'bool'),
+        txb.pure(Math.abs(tickUpper).toFixed(0), 'u32'),
+        txb.pure(tickUpper < 0, 'bool'),
         // amount_desired
-        txb.pure(bigAmountA.toFixed(0), 'u64'),
-        txb.pure(bigAmountB.toFixed(0), 'u64'),
+        txb.pure(amountA.toFixed(0), 'u64'),
+        txb.pure(amountB.toFixed(0), 'u64'),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // recipient
         txb.object(address),
         // deadline
@@ -344,39 +328,24 @@ export class Pool extends Base {
       ],
     });
 
-    return signAndExecute(txb, this.provider);
+    return txb;
   }
 
   async increaseLiquidity(
     options: Pool.IncreaseLiquidityOptions,
-  ): Promise<SuiTransactionBlockResponse> {
-    const {
-      amount: [amountA, amountB],
-      slippage,
-      nft,
-      signAndExecute,
-    } = options;
+  ): Promise<TransactionBlock> {
+    const { pool, slippage, address, nft } = options;
     const contract = await this.contract.getConfig();
-    const [{ pool_id: pool }, address] = await Promise.all([
-      this.nft.getFields(nft),
-      this.nft.getOwner(nft),
-    ]);
-    if (!address) throw new Error('Missing owner from nft: ' + nft);
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
-    const [coinA, coinB] = await Promise.all([
-      this.coin.getMetadata(coinTypeA),
-      this.coin.getMetadata(coinTypeB),
-    ]);
-    if (!coinA || !coinB) throw new Error('Invalid coin type');
-    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
-    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
     const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, bigAmountA),
-      this.coin.selectTradeCoins(address, coinTypeB, bigAmountB),
+      this.coin.selectTradeCoins(address, coinTypeA, amountA),
+      this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = new TransactionBlock();
+    const txb = options.txb || new TransactionBlock();
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
       typeArguments: typeArguments,
@@ -387,19 +356,19 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, bigAmountA),
+          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, bigAmountB),
+          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
         }),
         // nft
         txb.object(nft),
         // amount_desired
-        txb.pure(bigAmountA.toFixed(0), 'u64'),
-        txb.pure(bigAmountB.toFixed(0), 'u64'),
+        txb.pure(amountA.toFixed(0), 'u64'),
+        txb.pure(amountB.toFixed(0), 'u64'),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         // clock
@@ -408,33 +377,19 @@ export class Pool extends Base {
         txb.object(contract.Versioned),
       ],
     });
-    return signAndExecute(txb, this.provider);
+    return txb;
   }
 
   async decreaseLiquidity(
     options: Pool.DecreaseLiquidityOptions,
-  ): Promise<SuiTransactionBlockResponse> {
-    const {
-      amount: [amountA, amountB],
-      slippage,
-      nft,
-      signAndExecute,
-    } = options;
+  ): Promise<TransactionBlock> {
+    const { slippage, nft, pool, decreaseLiquidity } = options;
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
     const contract = await this.contract.getConfig();
-    const [{ pool_id: pool }, { liquidity }] = await Promise.all([
-      this.nft.getFields(nft),
-      this.nft.getPositionFields(nft),
-    ]);
     const typeArguments = await this.getPoolTypeArguments(pool);
-    const [coinTypeA, coinTypeB] = typeArguments;
-    const [coinA, coinB] = await Promise.all([
-      this.coin.getMetadata(coinTypeA),
-      this.coin.getMetadata(coinTypeB),
-    ]);
-    const bigAmountA = this.math.scaleUp(amountA, coinA.decimals);
-    const bigAmountB = this.math.scaleUp(amountB, coinB.decimals);
 
-    const txb = new TransactionBlock();
+    const txb = options.txb || new TransactionBlock();
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::decrease_liquidity`,
       typeArguments: typeArguments,
@@ -446,10 +401,10 @@ export class Pool extends Base {
         // nft
         txb.object(nft),
         // liquidity
-        txb.pure(liquidity, 'u128'),
+        txb.pure(new BN(decreaseLiquidity).toString(), 'u128'),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(bigAmountB, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
+        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         // clock
@@ -458,7 +413,80 @@ export class Pool extends Base {
         txb.object(contract.Versioned),
       ],
     });
-    return signAndExecute(txb, this.provider);
+    return txb;
+  }
+
+  async removeLiquidity(options: Pool.RemoveLiquidityOptions): Promise<TransactionBlock> {
+    let txb = await this.decreaseLiquidity(options);
+    txb = await this.collectFee({ txb, ...options });
+    txb = await this.collectReward({ txb, ...options });
+
+    return txb;
+  }
+
+  async collectFee(options: Pool.CollectFeeOptions): Promise<TransactionBlock> {
+    const {
+      pool,
+      nft,
+      address,
+      collectAmountA: amountAMax,
+      collectAmountB: amountBMax,
+    } = options;
+    const txb = options.txb || new TransactionBlock();
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.getPoolTypeArguments(pool);
+
+    txb.moveCall({
+      target: `${contract.PackageId}::position_manager::collect`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(pool),
+        txb.object(contract.Positions),
+        txb.object(nft),
+        // amount_a_max
+        txb.pure(amountAMax, 'u64'),
+        // amount_a_max
+        txb.pure(amountBMax, 'u64'),
+        //recipient
+        txb.pure(address),
+        // deadline
+        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    return txb;
+  }
+
+  async collectReward(options: Pool.CollectRewardOptions): Promise<TransactionBlock> {
+    const { pool: poolId, nft, rewardAmounts, address } = options;
+    const txb = options.txb || new TransactionBlock();
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.getPoolTypeArguments(poolId);
+    const pool = await this.getPool(poolId);
+
+    pool.reward_infos.forEach((rewardInfo, index) => {
+      txb.moveCall({
+        target: `${contract.PackageId}::position_manager::collect_reward`,
+        typeArguments: [...typeArguments, rewardInfo.fields.vault_coin_type],
+        arguments: [
+          txb.object(poolId),
+          txb.object(contract.Positions),
+          txb.object(nft),
+          txb.object(rewardInfo.fields.vault),
+          txb.pure(index, 'u64'),
+          txb.pure(rewardAmounts[index], 'u64'), //TODO
+          txb.pure(address),
+          txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+          txb.object(SUI_CLOCK_OBJECT_ID),
+          txb.object(contract.Versioned),
+        ],
+      });
+    });
+
+    return txb;
   }
 
   public getTokenAmountsFromLiquidity(options: {
@@ -508,6 +536,34 @@ export class Pool extends Base {
     ];
   }
 
+  async getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
+    return this.getCacheOrSet('pool-type-' + poolId, async () => {
+      const result = await this.getPool(poolId);
+      return result.types;
+    });
+  }
+
+  parsePoolType(type: string): Pool.Types {
+    const matched = type.match(/(\w+::\w+::\w+)/g);
+    if (!matched || matched.length !== 4) {
+      throw new Error('Invalid pool type');
+    }
+    return [matched[1]!, matched[2]!, matched[3]!];
+  }
+
+  protected parsePool(pool: SuiObjectResponse) {
+    const fields = getObjectFields(pool) as Pool.PoolFields;
+    const objectId = getObjectId(pool);
+    const type = getObjectType(pool)!;
+    this.getCacheOrSet('pool-type-' + objectId, async () => type);
+    return {
+      ...fields,
+      objectId,
+      type,
+      types: this.parsePoolType(type),
+    };
+  }
+
   protected getMinimumAmountBySlippage(
     amount: Decimal.Value,
     slippage: Decimal.Value,
@@ -518,36 +574,5 @@ export class Pool extends Base {
       throw new Error('invalid slippage range');
     }
     return origin.mul(ratio).toFixed(0);
-  }
-
-  protected async getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
-    const type = await this.getCacheOrSet('pool-type-' + poolId, async () => {
-      const result = await this.provider.getObject({
-        id: poolId,
-        options: { showType: true },
-      });
-      validateObjectResponse(result, 'pool');
-      return getObjectType(result)!;
-    });
-    return this.parsePoolType(type);
-  }
-
-  protected parsePoolType(type: string): Pool.Types {
-    const matched = type.match(/(\w+::\w+::\w+)/g);
-    if (!matched || matched.length !== 4) {
-      throw new Error('Invalid pool type');
-    }
-    return [matched[1]!, matched[2]!, matched[3]!];
-  }
-
-  protected getTickIndex(
-    price: Decimal.Value,
-    coinA: CoinMetadata,
-    coinB: CoinMetadata,
-    fee: Contract.Fee,
-  ) {
-    let tick = this.math.priceToTickIndex(price, coinA.decimals, coinB.decimals);
-    tick -= tick % fee.tickSpacing;
-    return Math.min(Math.max(tick, MIN_TICK_INDEX), MAX_TICK_INDEX);
   }
 }
