@@ -1,5 +1,12 @@
 
 
+## [0.3.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.3.0...0.3.1) (2023-06-12)
+
+
+### Bug Fixes
+
+* **trade:** remove async syntax while getting sqrtPrices ([fb6a76f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/fb6a76f53c6ace4c537474c0cdeec81ff3ff5c1a))
+
 # [0.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.2.0...0.3.0) (2023-06-09)
 
 
