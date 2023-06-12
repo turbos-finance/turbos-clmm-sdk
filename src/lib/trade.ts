@@ -69,7 +69,7 @@ export class Trade extends Base {
       coinTypeB,
     );
 
-    const sqrtPrices = routes.map(async ({ nextTickIndex, coinA, coinB, aToB }) => {
+    const sqrtPrices = routes.map(({ nextTickIndex, coinA, coinB, aToB }) => {
       const nextTickPrice = this.math.tickIndexToPrice(
         nextTickIndex,
         coinA.decimals,
