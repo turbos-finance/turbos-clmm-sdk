@@ -434,6 +434,11 @@ export class Pool extends Base {
       collectAmountB: amountBMax,
     } = options;
     const txb = options.txb || new TransactionBlock();
+
+    if (Number(amountAMax) === 0 && Number(amountBMax) === 0) {
+      return txb;
+    }
+
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
 
