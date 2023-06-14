@@ -420,6 +420,7 @@ export class Pool extends Base {
     let txb = await this.decreaseLiquidity(options);
     txb = await this.collectFee({ txb, ...options });
     txb = await this.collectReward({ txb, ...options });
+    txb = await this.nft.burn({ txb, nft: options.nft, pool: options.pool });
 
     return txb;
   }

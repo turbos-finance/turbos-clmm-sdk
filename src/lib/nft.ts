@@ -1,4 +1,9 @@
-import { SuiObjectResponse, getObjectFields, getObjectOwner } from '@mysten/sui.js';
+import {
+  SuiObjectResponse,
+  TransactionBlock,
+  getObjectFields,
+  getObjectOwner,
+} from '@mysten/sui.js';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
@@ -68,6 +73,12 @@ export declare module NFT {
     feeGrowthOutsideB: BN;
     rewardGrowthsOutside: [BN, BN, BN];
   }
+
+  export interface BurnOptions {
+    pool: string;
+    nft: string;
+    txb?: TransactionBlock;
+  }
 }
 
 export class NFT extends Base {
@@ -132,6 +143,25 @@ export class NFT extends Base {
         (val) => new BN(val),
       ) as [BN, BN, BN],
     };
+  }
+
+  async burn(options: NFT.BurnOptions): Promise<TransactionBlock> {
+    const { pool, nft } = options;
+    const txb = options.txb || new TransactionBlock();
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.pool.getPoolTypeArguments(pool);
+
+    txb.moveCall({
+      target: `${contract.PackageId}::position_manager::burn`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(contract.Positions),
+        txb.object(nft),
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    return txb;
   }
 
   protected getObject(nftId: string): Promise<SuiObjectResponse> {
