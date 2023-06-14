@@ -1,5 +1,18 @@
 
 
+# [0.4.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.3.1...0.4.0) (2023-06-14)
+
+
+### Bug Fixes
+
+* **pool:** do not apply position_manager::collect if not collect amounts ([22be52b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/22be52b64ca94b06496ff87e4a31b5a190c30d5f))
+* **pool:** should burn nft while removing liquidity ([cbf0e20](https://github.com/turbos-finance/turbos-clmm-sdk/commit/cbf0e20d2cbb1b9e9f6df060532b9cc76b19ceee))
+
+
+### Features
+
+* **nft:** add method getPositionTick ([3482681](https://github.com/turbos-finance/turbos-clmm-sdk/commit/3482681609b462955f8cbe2d896a1f02952cc461))
+
 ## [0.3.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.3.0...0.3.1) (2023-06-12)
 
 
