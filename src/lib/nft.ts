@@ -1,6 +1,7 @@
 import { SuiObjectResponse, getObjectFields, getObjectOwner } from '@mysten/sui.js';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
+import BN from 'bn.js';
 
 export declare module NFT {
   export interface NftField {
@@ -35,6 +36,38 @@ export declare module NFT {
     tokens_owed_a: string;
     tokens_owed_b: string;
   }
+
+  export interface PositionTickField {
+    id: { id: string };
+    name: { type: string; fields: { bits: number } };
+    value: {
+      type: string;
+      fields: {
+        fee_growth_outside_a: string;
+        fee_growth_outside_b: string;
+        id: { id: string };
+        initialized: boolean;
+        liquidity_gross: string;
+        liquidity_net: {
+          fields: {
+            bits: string;
+          };
+          type: string;
+        };
+        reward_growths_outside: [string, string, string];
+      };
+    };
+  }
+
+  export interface PositionTick {
+    tickIndex: number;
+    initialized: boolean;
+    liquidityNet: BN;
+    liquidityGross: BN;
+    feeGrowthOutsideA: BN;
+    feeGrowthOutsideB: BN;
+    rewardGrowthsOutside: [BN, BN, BN];
+  }
 }
 
 export class NFT extends Base {
@@ -53,25 +86,52 @@ export class NFT extends Base {
   }
 
   async getPositionFields(nftId: string): Promise<NFT.PositionField> {
-    return this.getCacheOrSet('nft-position-fields-' + nftId, async () => {
-      const contract = await this.contract.getConfig();
-      const result = await this.provider.getDynamicFieldObject({
-        parentId: contract.Positions,
-        name: { type: 'address', value: nftId },
-      });
-      return getObjectFields(result) as NFT.PositionField;
+    const contract = await this.contract.getConfig();
+    const result = await this.provider.getDynamicFieldObject({
+      parentId: contract.Positions,
+      name: { type: 'address', value: nftId },
     });
+    return getObjectFields(result) as NFT.PositionField;
   }
 
   async getPositionFieldsByPositionId(positionId: string): Promise<NFT.PositionField> {
-    return this.getCacheOrSet('position-fields-' + positionId, async () => {
-      const result = await this.provider.getObject({
-        id: positionId,
-        options: { showContent: true },
-      });
-      validateObjectResponse(result, 'position');
-      return getObjectFields(result) as NFT.PositionField;
+    const result = await this.provider.getObject({
+      id: positionId,
+      options: { showContent: true },
     });
+    validateObjectResponse(result, 'position');
+    return getObjectFields(result) as NFT.PositionField;
+  }
+
+  async getPositionTick(
+    pool: string,
+    tickIndex:
+      | NFT.PositionField['tick_lower_index']
+      | NFT.PositionField['tick_upper_index'],
+  ): Promise<NFT.PositionTick | undefined> {
+    const response = await this.provider.getDynamicFieldObject({
+      parentId: pool,
+      name: {
+        type: tickIndex.type,
+        value: tickIndex.fields,
+      },
+    });
+    const fields = getObjectFields(response) as undefined | NFT.PositionTickField;
+    if (!fields) return;
+
+    return {
+      tickIndex: this.math.bitsToNumber(fields.name.fields.bits),
+      initialized: fields.value.fields.initialized,
+      liquidityNet: new BN(
+        this.math.bitsToNumber(fields.value.fields.liquidity_net.fields.bits, 128),
+      ),
+      liquidityGross: new BN(fields.value.fields.liquidity_gross),
+      feeGrowthOutsideA: new BN(fields.value.fields.fee_growth_outside_a),
+      feeGrowthOutsideB: new BN(fields.value.fields.fee_growth_outside_b),
+      rewardGrowthsOutside: fields.value.fields.reward_growths_outside.map(
+        (val) => new BN(val),
+      ) as [BN, BN, BN],
+    };
   }
 
   protected getObject(nftId: string): Promise<SuiObjectResponse> {
