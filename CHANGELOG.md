@@ -1,5 +1,12 @@
 
 
+## [0.4.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.0...0.4.1) (2023-06-22)
+
+
+### Bug Fixes
+
+* **swap:** invalid amount when amountSpecifiedIsInput is false ([7c62faf](https://github.com/turbos-finance/turbos-clmm-sdk/commit/7c62fafe3cd7ed8da021522e5940c6ce58d2b2f6))
+
 # [0.4.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.3.1...0.4.0) (2023-06-14)
 
 
