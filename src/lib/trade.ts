@@ -14,7 +14,17 @@ const ONE_MINUTE = 60 * 1000;
 
 export declare module Trade {
   export interface SwapOptions {
-    routes: { pool: string; aToB: boolean; nextTickIndex: number }[];
+    routes: {
+      pool: string;
+      aToB: boolean;
+      /**
+       * ```typescript
+       * const swapResult = sdk.trade.computeSwapResult({ ... })
+       * const nextTickIndex = sdk.math.bitsToNumber(swapResult.tick_current_index.bits)
+       * ```
+       */
+      nextTickIndex: number;
+    }[];
     coinTypeA: string;
     coinTypeB: string;
     address: SuiAddress;

@@ -4,66 +4,77 @@
 pnpm add turbos-clmm-sdk @mysten/sui.js
 ```
 
-# Usage
+# Modules
 
-### Initial SDK
+- contract
+- trade
+- pool
+- nft
+- account
+- math
+
+# Initial SDK
 
 ```typescript
 import { JsonRpcProvider, testnetConnection } from '@mysten/sui.js';
 import { Network, TurbosSdk } from 'turbos-clmm-sdk';
 
-const provider = new JsonRpcProvider(testnetConnection);
-export const sdk = new TurbosSdk(provider, Network.testnet);
+// Choose one way
+export const sdk = new TurbosSdk(Network.testnet);
+export const sdk = new TurbosSdk(Network.testnet, testnetConnection);
+export const sdk = new TurbosSdk(Network.testnet, new JsonRpcProvider(testnetConnection));
 ```
 
-## Get signer from mnemonic
+# Module:Contract
+
+### getConfig
 
 ```typescript
-const mnemonic = sdk.account.generateMnemonic(); // OR from your own
-const keypair = sdk.account.getKeypairFromMnemonics(mnemonic);
-const signer = new RawSigner(keypair, provider);
+import type { Contract } from 'turbos-clmm-sdk';
+
+const contract = await sdk.contract.getConfig(); // interface: Contract.Config
 ```
 
-### Get fee list
+### getFees
 
 ```typescript
-const fees = await sdk.contract.getFees(); // Fee[]
+import type { Contract } from 'turbos-clmm-sdk';
+
+const fees = await sdk.contract.getFees(); // interface: Contract.Fee[]
 ```
 
-### Create a pool
+# Module:Trade
+
+### computeSwapResult
 
 ```typescript
-import { RawSigner } from '@mysten/sui.js';
+import type { Trade } from 'turbos-clmm-sdk';
 
-const fees = await sdk.contract.getFees();
-
-const result = await sdk.pool.createPool({
-  address: '0x12345abcde',
-  fee: fees[0],
-  coins: ['0x2::sui:SUI', '0x123abcd::coin:COIN'],
-  amount: [5, 10],
-  currentPrice: 200,
-  minPrice: 100,
-  maxPrice: 1000,
-  slippage: 0.2,
-  signAndExecute(txb, provider) {
-    return signer.signAndExecuteTransactionBlock(txb);
-  },
+// interface: Trade.ComputedSwapResult
+const swapResult = await sdk.trade.computeSwapResult({
+  pool: string;
+  a2b: boolean;
+  address: string;
+  amountSpecified: number | string;
+  amountSpecifiedIsInput: boolean;
 });
 ```
 
-### Add pool liquidity
+### swap
 
 ```typescript
-const result = await sdk.pool.createPool({
-  pool: '0x1234567abcdefg', // Pool ID
-  address: '0x12345abcde',
-  amount: [5, 10],
-  minPrice: 100,
-  maxPrice: 1000,
-  slippage: 0.2,
-  signAndExecute(txb, provider) {
-    return signer.signAndExecuteTransactionBlock(txb);
-  },
+const txb = await sdk.trade.swap({
+  /**
+   * nextTickIndex = sdk.math.bitsToNumber(swapResult.tick_current_index.bits)
+   */
+  routes: { pool: string; aToB: boolean; nextTickIndex: number }[];
+  coinTypeA: string;
+  coinTypeB: string;
+  address: string;
+  amountA: number | string;
+  amountB: number | string;
+  amountSpecifiedIsInput: boolean;
+  slippage: string;
+  txb?: TransactionBlock;
 });
 ```
