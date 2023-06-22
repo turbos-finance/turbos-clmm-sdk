@@ -18,8 +18,8 @@ export declare module Trade {
     coinTypeA: string;
     coinTypeB: string;
     address: SuiAddress;
-    amountIn: Decimal.Value;
-    amountOut: Decimal.Value;
+    amountA: Decimal.Value;
+    amountB: Decimal.Value;
     amountSpecifiedIsInput: boolean;
     slippage: string;
     txb?: TransactionBlock;
@@ -44,8 +44,8 @@ export declare module Trade {
 export class Trade extends Base {
   async swap(options: Trade.SwapOptions): Promise<TransactionBlock> {
     const { coinTypeA, coinTypeB, address, amountSpecifiedIsInput, slippage } = options;
-    const amountA = new Decimal(options.amountIn);
-    const amountB = new Decimal(options.amountOut);
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
     const contract = await this.contract.getConfig();
     const routes = await Promise.all(
       options.routes.map(async (item) => {
