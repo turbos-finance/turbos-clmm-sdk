@@ -43,10 +43,10 @@ export declare module Trade {
 
 export class Trade extends Base {
   async swap(options: Trade.SwapOptions): Promise<TransactionBlock> {
-    const { coinTypeA, coinTypeB, address, amountOut, amountSpecifiedIsInput, slippage } =
-      options;
+    const { coinTypeA, coinTypeB, address, amountSpecifiedIsInput, slippage } = options;
+    const amountA = new Decimal(options.amountIn);
+    const amountB = new Decimal(options.amountOut);
     const contract = await this.contract.getConfig();
-    const amountIn = new Decimal(options.amountIn);
     const routes = await Promise.all(
       options.routes.map(async (item) => {
         const typeArguments = await this.pool.getPoolTypeArguments(item.pool);
@@ -62,7 +62,7 @@ export class Trade extends Base {
         };
       }),
     );
-    const coinIds = await this.coin.selectTradeCoins(address, coinTypeA, amountIn);
+    const coinIds = await this.coin.selectTradeCoins(address, coinTypeA, amountA);
     const { functionName, typeArguments } = this.getFunctionNameAndTypeArguments(
       routes.map(({ typeArguments }) => typeArguments),
       coinTypeA,
@@ -91,11 +91,15 @@ export class Trade extends Base {
       arguments: [
         ...routes.map(({ pool }) => txb.object(pool)),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, amountIn),
+          objects: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, amountA),
         }),
-        txb.pure(amountIn.toFixed(0), 'u64'),
+        txb.pure((amountSpecifiedIsInput ? amountA : amountB).toFixed(0), 'u64'),
         txb.pure(
-          this.amountOutWithSlippage(amountOut, slippage, amountSpecifiedIsInput),
+          this.amountOutWithSlippage(
+            amountSpecifiedIsInput ? amountB : amountA,
+            slippage,
+            amountSpecifiedIsInput,
+          ),
           'u64',
         ),
         ...sqrtPrices.map((price) => txb.pure(price, 'u128')),
@@ -163,7 +167,7 @@ export class Trade extends Base {
     coinTypeA: string,
     coinTypeB: string,
   ) {
-    let typeArguments: string[];
+    let typeArguments: string[] = [];
     const functionName: string[] = ['swap'];
     if (pools.length === 1) {
       typeArguments = pools[0]!;
@@ -175,20 +179,20 @@ export class Trade extends Base {
     } else {
       const pool1Args = pools[0]!;
       const pool2Args = pools[1]!;
-      let coinTypeC: string;
       if (coinTypeA === pool1Args[0]) {
         functionName.push('a', 'b');
-        coinTypeC = pool1Args[1];
+        typeArguments.push(pool1Args[0], pool1Args[2], pool1Args[1]);
       } else {
         functionName.push('b', 'a');
-        coinTypeC = pool1Args[0];
+        typeArguments.push(pool1Args[1], pool1Args[2], pool1Args[0]);
       }
+
+      typeArguments.push(pool2Args[2], coinTypeB);
       if (coinTypeB === pool2Args[0]) {
         functionName.push('c', 'b');
       } else {
         functionName.push('b', 'c');
       }
-      typeArguments = [coinTypeA, pool1Args[2], coinTypeB, pool2Args[2], coinTypeC];
     }
 
     return {
