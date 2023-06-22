@@ -2,6 +2,10 @@
 
 ## [0.4.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.1...0.4.2) (2023-06-22)
 
+### Breaking Changes
+
+aToB is removed and a2b is required
+
 ## [0.4.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.0...0.4.1) (2023-06-22)
 
 
