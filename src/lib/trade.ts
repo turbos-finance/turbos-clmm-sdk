@@ -16,7 +16,7 @@ export declare module Trade {
   export interface SwapOptions {
     routes: {
       pool: string;
-      aToB: boolean;
+      a2b: boolean;
       /**
        * ```typescript
        * const swapResult = sdk.trade.computeSwapResult({ ... })
@@ -28,11 +28,19 @@ export declare module Trade {
     coinTypeA: string;
     coinTypeB: string;
     address: SuiAddress;
-    amountA: Decimal.Value;
-    amountB: Decimal.Value;
+    amountA: string | number;
+    amountB: string | number;
     amountSpecifiedIsInput: boolean;
     slippage: string;
     txb?: TransactionBlock;
+  }
+
+  export interface ComputeSwapResultOptions {
+    pool: string;
+    a2b: boolean;
+    address: SuiAddress;
+    amountSpecified: string | number;
+    amountSpecifiedIsInput: boolean;
   }
 
   export interface ComputedSwapResult {
@@ -79,7 +87,7 @@ export class Trade extends Base {
       coinTypeB,
     );
 
-    const sqrtPrices = routes.map(({ nextTickIndex, coinA, coinB, aToB }) => {
+    const sqrtPrices = routes.map(({ nextTickIndex, coinA, coinB, a2b }) => {
       const nextTickPrice = this.math.tickIndexToPrice(
         nextTickIndex,
         coinA.decimals,
@@ -88,7 +96,7 @@ export class Trade extends Base {
       return this.sqrtPriceWithSlippage(
         nextTickPrice,
         slippage,
-        aToB,
+        a2b,
         coinA.decimals,
         coinB.decimals,
       );
@@ -124,13 +132,9 @@ export class Trade extends Base {
     return txb;
   }
 
-  async computeSwapResult(options: {
-    pool: string;
-    a2b: boolean;
-    address: SuiAddress;
-    amountSpecified: Decimal.Value;
-    amountSpecifiedIsInput: boolean;
-  }): Promise<Trade.ComputedSwapResult> {
+  async computeSwapResult(
+    options: Trade.ComputeSwapResultOptions,
+  ): Promise<Trade.ComputedSwapResult> {
     const { pool, a2b, amountSpecified, amountSpecifiedIsInput, address } = options;
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool['getPoolTypeArguments'](pool);
@@ -212,7 +216,7 @@ export class Trade extends Base {
   }
 
   protected amountOutWithSlippage(
-    amountOut: Decimal.Value,
+    amountOut: Decimal,
     slippage: string,
     amountSpecifiedIsInput: boolean,
   ) {
@@ -226,7 +230,7 @@ export class Trade extends Base {
   }
 
   protected sqrtPriceWithSlippage(
-    price: Decimal.Value,
+    price: Decimal,
     slippage: string,
     a2b: boolean,
     decimalsA: number,
