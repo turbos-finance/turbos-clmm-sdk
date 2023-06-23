@@ -67,7 +67,7 @@ const txb = await sdk.trade.swap({
   /**
    * nextTickIndex = sdk.math.bitsToNumber(swapResult.tick_current_index.bits)
    */
-  routes: { pool: string; aToB: boolean; nextTickIndex: number }[];
+  routes: { pool: string; a2b: boolean; nextTickIndex: number }[];
   coinTypeA: string;
   coinTypeB: string;
   address: string;
