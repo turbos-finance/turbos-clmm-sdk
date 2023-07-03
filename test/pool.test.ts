@@ -2,15 +2,34 @@ import { createSdk } from './helper/create-sdk';
 
 const sdk = createSdk();
 
-test('parse type arguments from pool.type', () => {
+describe('parse pool type', () => {
   const poolType =
     '0x2abcde::pool::Pool<0x2::sui::SUI, 0x1banana::usdc::USDC, 0x34567::fee3000bps::FEE3000BPS>';
-  expect(sdk.pool['parsePoolType'](poolType)).toStrictEqual([
-    '0x2::sui::SUI',
-    '0x1banana::usdc::USDC',
-    '0x34567::fee3000bps::FEE3000BPS',
-  ]);
-  expect(() => sdk.pool['parsePoolType']('some text')).toThrowError();
+  const poolType1 = '0x2abcde::pool::Pool<0x2::sui::SUI, 0x1banana::usdc::USDC>';
+
+  test('normal', () => {
+    expect(sdk.pool.parsePoolType(poolType)).toStrictEqual([
+      '0x2::sui::SUI',
+      '0x1banana::usdc::USDC',
+      '0x34567::fee3000bps::FEE3000BPS',
+    ]);
+    expect(sdk.pool.parsePoolType(poolType1)).toStrictEqual([
+      '0x2::sui::SUI',
+      '0x1banana::usdc::USDC',
+    ]);
+  });
+
+  test('specific length', () => {
+    expect(sdk.pool.parsePoolType(poolType, 3)).toHaveLength(3);
+    expect(sdk.pool.parsePoolType(poolType1, 2)).toHaveLength(2);
+
+    expect(() => sdk.pool.parsePoolType(poolType, 2)).toThrowError();
+    expect(() => sdk.pool.parsePoolType(poolType1, 3)).toThrowError();
+  });
+
+  test('invalid type', () => {
+    expect(() => sdk.pool.parsePoolType('some text')).toHaveLength(0);
+  });
 });
 
 test('minimum amount by slippage', () => {

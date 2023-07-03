@@ -154,7 +154,7 @@ export class Pool extends Base {
   async getPools(withLocked: boolean = false): Promise<Pool.Pool[]> {
     const contract = await this.contract.getConfig();
     const poolFactoryIds: string[] = [];
-    let poolFactories: DynamicFieldPage | void;
+    let poolFactories: DynamicFieldPage | undefined;
     do {
       poolFactories = await this.provider.getDynamicFields({
         parentId: contract.PoolTableId,
@@ -549,12 +549,17 @@ export class Pool extends Base {
     });
   }
 
-  parsePoolType(type: string): Pool.Types {
-    const matched = type.match(/(\w+::\w+::\w+)/g);
-    if (!matched || matched.length !== 4) {
+  parsePoolType(type: string, length: 2): [string, string];
+  parsePoolType(type: string, length: 3): Pool.Types;
+  parsePoolType(type: string): string[];
+  parsePoolType(type: string, length?: number): string[] {
+    const types = type.replace('>', '').split('<')[1]?.split(/,\s*/) || [];
+
+    if (length !== undefined && length !== types.length) {
       throw new Error('Invalid pool type');
     }
-    return [matched[1]!, matched[2]!, matched[3]!];
+
+    return types;
   }
 
   protected parsePool(pool: SuiObjectResponse) {
@@ -566,7 +571,7 @@ export class Pool extends Base {
       ...fields,
       objectId,
       type,
-      types: this.parsePoolType(type),
+      types: this.parsePoolType(type, 3),
     };
   }
 

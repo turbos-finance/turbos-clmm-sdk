@@ -137,7 +137,7 @@ export class Trade extends Base {
   ): Promise<Trade.ComputedSwapResult> {
     const { pool, a2b, amountSpecified, amountSpecifiedIsInput, address } = options;
     const contract = await this.contract.getConfig();
-    const typeArguments = await this.pool['getPoolTypeArguments'](pool);
+    const typeArguments = await this.pool.getPoolTypeArguments(pool);
 
     const txb = new TransactionBlock();
     txb.moveCall({
