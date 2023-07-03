@@ -1,5 +1,12 @@
 
 
+# [0.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.3...0.5.0) (2023-07-03)
+
+
+### Features
+
+* **pool:** parse pool type with dynamic tokens amount [release] ([a23c8d9](https://github.com/turbos-finance/turbos-clmm-sdk/commit/a23c8d9b09704b6f6d7f989c50ffaa2d2e875614))
+
 ## [0.4.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.2...0.4.3) (2023-06-22)
 
 ## [0.4.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.1...0.4.2) (2023-06-22)
