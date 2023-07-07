@@ -1,5 +1,12 @@
 
 
+# [0.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.5.0...0.6.0) (2023-07-07)
+
+
+### Features
+
+* **trade:** computeSwapResult support batch calling [release] ([d3a9d41](https://github.com/turbos-finance/turbos-clmm-sdk/commit/d3a9d413d964360912d93d698b546eee69a3655b))
+
 # [0.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.4.3...0.5.0) (2023-07-03)
 
 
