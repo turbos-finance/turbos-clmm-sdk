@@ -50,10 +50,12 @@ const fees = await sdk.contract.getFees(); // interface: Contract.Fee[]
 ```typescript
 import type { Trade } from 'turbos-clmm-sdk';
 
-// interface: Trade.ComputedSwapResult
-const swapResult = await sdk.trade.computeSwapResult({
-  pool: string;
-  a2b: boolean;
+// interface: Trade.ComputedSwapResult[]
+const swapResults = await sdk.trade.computeSwapResult({
+  pools: Array<{
+    pool: string;
+    a2b: boolean;
+  }>,
   address: string;
   amountSpecified: number | string;
   amountSpecifiedIsInput: boolean;
