@@ -36,8 +36,7 @@ export declare module Trade {
   }
 
   export interface ComputeSwapResultOptions {
-    pool: string;
-    a2b: boolean;
+    pools: { pool: string; a2b: boolean }[];
     address: SuiAddress;
     amountSpecified: string | number;
     amountSpecifiedIsInput: boolean;
@@ -134,37 +133,42 @@ export class Trade extends Base {
 
   async computeSwapResult(
     options: Trade.ComputeSwapResultOptions,
-  ): Promise<Trade.ComputedSwapResult> {
-    const { pool, a2b, amountSpecified, amountSpecifiedIsInput, address } = options;
+  ): Promise<Trade.ComputedSwapResult[]> {
+    const { pools, amountSpecified, amountSpecifiedIsInput, address } = options;
     const contract = await this.contract.getConfig();
-    const typeArguments = await this.pool.getPoolTypeArguments(pool);
-
     const txb = new TransactionBlock();
-    txb.moveCall({
-      target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
-      typeArguments: typeArguments,
-      arguments: [
-        // pool
-        txb.object(pool),
-        // a_to_b
-        txb.pure(a2b, 'bool'),
-        // amount_specified
-        txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
-        // amount_specified_is_input
-        txb.pure(amountSpecifiedIsInput, 'bool'),
-        // sqrt_price_limit
-        txb.pure(
-          this.math
-            .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
-            .toString(),
-          'u128',
-        ),
-        // clock
-        txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
-        txb.object(contract.Versioned),
-      ],
-    });
+
+    await Promise.all(
+      pools.map(async ({ pool, a2b }) => {
+        const typeArguments = await this.pool.getPoolTypeArguments(pool);
+
+        txb.moveCall({
+          target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
+          typeArguments: typeArguments,
+          arguments: [
+            // pool
+            txb.object(pool),
+            // a_to_b
+            txb.pure(a2b, 'bool'),
+            // amount_specified
+            txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
+            // amount_specified_is_input
+            txb.pure(amountSpecifiedIsInput, 'bool'),
+            // sqrt_price_limit
+            txb.pure(
+              this.math
+                .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
+                .toString(),
+              'u128',
+            ),
+            // clock
+            txb.object(SUI_CLOCK_OBJECT_ID),
+            // versioned
+            txb.object(contract.Versioned),
+          ],
+        });
+      }),
+    );
 
     const result = await this.provider.devInspectTransactionBlock({
       transactionBlock: txb,
@@ -173,7 +177,9 @@ export class Trade extends Base {
     if (result.error) {
       throw new Error(result.error);
     }
-    return result.events[0]!.parsedJson as Trade.ComputedSwapResult;
+    return result.events.map((event) => {
+      return event.parsedJson as Trade.ComputedSwapResult;
+    });
   }
 
   protected getFunctionNameAndTypeArguments(
