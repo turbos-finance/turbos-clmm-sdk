@@ -1,5 +1,12 @@
 
 
+## [0.6.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.6.0...0.6.1) (2023-07-29)
+
+
+### Bug Fixes
+
+* **contract:** disable browser cache contract.json [release] ([f435d68](https://github.com/turbos-finance/turbos-clmm-sdk/commit/f435d68c4f973bb4e869dcaf9e393d514a3fc6a8))
+
 # [0.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.5.0...0.6.0) (2023-07-07)
 
 
