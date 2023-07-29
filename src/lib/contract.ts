@@ -52,7 +52,7 @@ export class Contract extends Base {
   private fetchJSON() {
     return this.getCacheOrSet('contract-json', async () => {
       const response = await fetch(
-        'https://s3.amazonaws.com/app.turbos.finance/sdk/contract.json',
+        'https://s3.amazonaws.com/app.turbos.finance/sdk/contract.json?t=' + Date.now(),
         {
           method: 'GET',
         },
