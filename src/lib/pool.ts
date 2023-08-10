@@ -543,7 +543,7 @@ export class Pool extends Base {
   }
 
   async getPoolTypeArguments(poolId: string): Promise<Pool.Types> {
-    return this.getCacheOrSet('pool-type-' + poolId, async () => {
+    return this.getCacheOrSet('pool-types-' + poolId, async () => {
       const result = await this.getPool(poolId);
       return result.types;
     });
