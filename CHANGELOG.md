@@ -1,5 +1,12 @@
 
 
+## [0.7.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.0...0.7.1) (2023-08-30)
+
+
+### Bug Fixes
+
+* esm needs package.json with type=module [release] ([1a0ddc4](https://github.com/turbos-finance/turbos-clmm-sdk/commit/1a0ddc40abb5108f65f6c8b17ff2357b2a0eee00))
+
 # [0.7.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.6.1...0.7.0) (2023-08-30)
 
 
