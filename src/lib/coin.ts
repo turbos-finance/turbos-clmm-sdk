@@ -66,4 +66,12 @@ export class Coin extends Base {
       ? [txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())])[0]!]
       : coinIds.map((id) => txb.object(id));
   }
+
+  zero(token: string, txb: TransactionBlock): TransactionArgument {
+    return txb.moveCall({
+      typeArguments: [token],
+      target: `0x2::coin::zero`,
+      arguments: [],
+    });
+  }
 }

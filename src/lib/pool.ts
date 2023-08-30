@@ -290,6 +290,15 @@ export class Pool extends Base {
 
     const txb = options.txb || new TransactionBlock();
 
+    const coinAObjects =
+      coinIdsA.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
+    const coinBObjects =
+      coinIdsB.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
+
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
       typeArguments: typeArguments,
@@ -300,10 +309,10 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
+          objects: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
+          objects: coinBObjects,
         }),
         // tick_lower_index
         txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
@@ -346,6 +355,15 @@ export class Pool extends Base {
     ]);
 
     const txb = options.txb || new TransactionBlock();
+    const coinAObjects =
+      coinIdsA.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
+    const coinBObjects =
+      coinIdsB.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
+
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
       typeArguments: typeArguments,
@@ -356,10 +374,10 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
+          objects: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
+          objects: coinBObjects,
         }),
         // nft
         txb.object(nft),
