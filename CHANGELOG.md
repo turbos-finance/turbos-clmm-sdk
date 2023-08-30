@@ -1,5 +1,12 @@
 
 
+# [0.7.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.6.1...0.7.0) (2023-08-30)
+
+
+### Features
+
+* **pool:** create 0 balance object txb ([c7ccf7f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/c7ccf7f8bd0b6086f95fb38fba321b36e9960284))
+
 ## [0.6.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.6.0...0.6.1) (2023-07-29)
 
 
