@@ -130,14 +130,14 @@ export class NFT extends Base {
     const fields = getObjectFields(response) as undefined | NFT.PositionTickField;
     if (!fields) return;
 
-    const liquidityNetBits = this.math.bitsToNumber(
-      fields.value.fields.liquidity_net.fields.bits,
-      128,
-    );
     return {
       tickIndex: this.math.bitsToNumber(fields.name.fields.bits),
       initialized: fields.value.fields.initialized,
-      liquidityNet: new BN(liquidityNetBits < 0 ? 0 : liquidityNetBits),
+      liquidityNet: new BN(
+        this.math
+          .bitsToNumber(fields.value.fields.liquidity_net.fields.bits, 128)
+          .toString(),
+      ),
       liquidityGross: new BN(fields.value.fields.liquidity_gross),
       feeGrowthOutsideA: new BN(fields.value.fields.fee_growth_outside_a),
       feeGrowthOutsideB: new BN(fields.value.fields.fee_growth_outside_b),
