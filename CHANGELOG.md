@@ -1,5 +1,12 @@
 
 
+## [0.7.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.1...0.7.2) (2023-10-02)
+
+
+### Bug Fixes
+
+* liquidity net bits number lt 0 get 0 [release] ([c20ee4a](https://github.com/turbos-finance/turbos-clmm-sdk/commit/c20ee4a7e949234a0eda29196ce915eac9a40ee3))
+
 ## [0.7.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.0...0.7.1) (2023-08-30)
 
 
