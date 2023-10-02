@@ -1,5 +1,13 @@
 
 
+## [0.7.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.2...0.7.4) (2023-10-02)
+
+
+### Bug Fixes
+
+* number is too big [release] ([509050f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/509050f43685b87c1905c1dcc11fa332805cc0cb))
+* prettier [release] ([01be1ca](https://github.com/turbos-finance/turbos-clmm-sdk/commit/01be1ca0d1d4f29f9f38fcf67ec826d302996cff))
+
 ## [0.7.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.1...0.7.2) (2023-10-02)
 
 
