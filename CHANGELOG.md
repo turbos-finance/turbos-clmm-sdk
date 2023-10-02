@@ -1,5 +1,12 @@
 
 
+## [0.7.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.2...0.7.3) (2023-10-02)
+
+
+### Bug Fixes
+
+* prettier [release] ([8a3f2fc](https://github.com/turbos-finance/turbos-clmm-sdk/commit/8a3f2fce2f05c690d224010fcef08961d36dd12e))
+
 ## [0.7.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.1...0.7.2) (2023-10-02)
 
 
