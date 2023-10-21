@@ -1,4 +1,5 @@
-import { SUI_CLOCK_OBJECT_ID, SuiAddress, TransactionBlock } from '@mysten/sui.js';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
@@ -27,7 +28,7 @@ export declare module Trade {
     }[];
     coinTypeA: string;
     coinTypeB: string;
-    address: SuiAddress;
+    address: string;
     amountA: string | number;
     amountB: string | number;
     amountSpecifiedIsInput: boolean;
@@ -37,7 +38,7 @@ export declare module Trade {
 
   export interface ComputeSwapResultOptions {
     pools: { pool: string; a2b: boolean }[];
-    address: SuiAddress;
+    address: string;
     amountSpecified: string | number;
     amountSpecifiedIsInput: boolean;
   }

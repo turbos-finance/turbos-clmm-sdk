@@ -1,9 +1,9 @@
+import type { SuiObjectResponse } from '@mysten/sui.js/client';
 import {
-  SuiObjectResponse,
   getObjectDeletedResponse,
   getObjectId,
   getObjectNotExistsResponse,
-} from '@mysten/sui.js';
+} from '../lib/legacy';
 
 export const validateObjectResponse = (
   obj: SuiObjectResponse,

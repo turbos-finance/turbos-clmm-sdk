@@ -1,12 +1,9 @@
-import {
-  SuiObjectResponse,
-  TransactionBlock,
-  getObjectFields,
-  getObjectOwner,
-} from '@mysten/sui.js';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
+import { getObjectFields, getObjectOwner } from './legacy';
+import { SuiObjectResponse } from '@mysten/sui.js/client';
 
 export declare module NFT {
   export interface NftField {

@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
-import { getObjectFields, getObjectId, getMoveObjectType } from '@mysten/sui.js';
 import { Network } from '../constants';
 import { Base } from './base';
+import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
 export declare module Contract {
   export interface Fee {
     fee: number;

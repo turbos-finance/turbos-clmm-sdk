@@ -1,18 +1,12 @@
-import {
-  TransactionBlock,
-  SuiAddress,
-  SUI_CLOCK_OBJECT_ID,
-  getObjectType,
-  getObjectFields,
-  getObjectId,
-  SuiObjectResponse,
-} from '@mysten/sui.js';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
-import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields';
+import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui.js/client';
+import { getObjectFields, getObjectId, getObjectType } from './legacy';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -22,7 +16,7 @@ export declare module Pool {
      * Pool ID
      */
     pool: string;
-    address: SuiAddress;
+    address: string;
     amountA: string | number;
     amountB: string | number;
     /**
@@ -154,14 +148,14 @@ export class Pool extends Base {
   async getPools(withLocked: boolean = false): Promise<Pool.Pool[]> {
     const contract = await this.contract.getConfig();
     const poolFactoryIds: string[] = [];
-    let poolFactories: DynamicFieldPage | undefined;
+    let poolFactories!: DynamicFieldPage;
     do {
       poolFactories = await this.provider.getDynamicFields({
         parentId: contract.PoolTableId,
         cursor: poolFactories?.nextCursor,
         limit: 15,
       });
-      poolFactoryIds.push(...poolFactories.data.map(getObjectId));
+      poolFactoryIds.push(...poolFactories.data.map((factory) => factory.objectId));
     } while (poolFactories.hasNextPage);
 
     if (!poolFactoryIds.length) return [];
@@ -581,7 +575,7 @@ export class Pool extends Base {
   }
 
   protected parsePool(pool: SuiObjectResponse) {
-    const fields = getObjectFields(pool) as Pool.PoolFields;
+    const fields = pool as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
     this.getCacheOrSet('pool-type-' + objectId, async () => type);
