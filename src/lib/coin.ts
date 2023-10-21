@@ -1,9 +1,5 @@
-import {
-  SuiAddress,
-  PaginatedCoins,
-  TransactionArgument,
-  TransactionBlock,
-} from '@mysten/sui.js';
+import { TransactionObjectArgument, TransactionBlock } from '@mysten/sui.js/transactions';
+import { PaginatedCoins } from '@mysten/sui.js/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
 
@@ -23,7 +19,7 @@ export class Coin extends Base {
   }
 
   async selectTradeCoins(
-    owner: SuiAddress,
+    owner: string,
     coinType: string,
     expectedAmount: Decimal,
   ): Promise<string[]> {
@@ -61,13 +57,13 @@ export class Coin extends Base {
     coinIds: string[],
     coinType: string,
     amount: Decimal,
-  ): TransactionArgument[] {
+  ): TransactionObjectArgument[] {
     return this.isSUI(coinType)
       ? [txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())])[0]!]
       : coinIds.map((id) => txb.object(id));
   }
 
-  zero(token: string, txb: TransactionBlock): TransactionArgument {
+  zero(token: string, txb: TransactionBlock): TransactionObjectArgument {
     return txb.moveCall({
       typeArguments: [token],
       target: `0x2::coin::zero`,
