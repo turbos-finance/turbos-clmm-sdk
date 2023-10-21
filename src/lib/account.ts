@@ -1,6 +1,6 @@
 import { Ed25519Keypair, type Keypair } from '@mysten/sui.js';
 import { generateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
+import { wordlist } from '@scure/bip39/wordlists/english';
 
 export declare module Account {
   export interface DerivePathOptions {
