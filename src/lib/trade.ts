@@ -121,7 +121,7 @@ export class Trade extends Base {
         ),
         ...sqrtPrices.map((price) => txb.pure(price, 'u128')),
         txb.pure(amountSpecifiedIsInput, 'bool'),
-        txb.object(address),
+        txb.pure(address, 'address'),
         txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),

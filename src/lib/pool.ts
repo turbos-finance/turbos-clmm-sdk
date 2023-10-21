@@ -258,7 +258,7 @@ export class Pool extends Base {
         txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // recipient
-        txb.object(address),
+        txb.pure(address, 'address'),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
@@ -327,7 +327,7 @@ export class Pool extends Base {
         txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // recipient
-        txb.object(address),
+        txb.pure(address, 'address'),
         // deadline
         txb.pure(Date.now() + ONE_MINUTE, 'u64'),
         // clock
