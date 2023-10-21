@@ -1,5 +1,12 @@
 
 
+## [0.7.5](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.4...0.7.5) (2023-10-21)
+
+
+### Bug Fixes
+
+* recipient should be marked as 'address' type [release] ([99f827e](https://github.com/turbos-finance/turbos-clmm-sdk/commit/99f827e4586fd7f25069ec83328146b51e76e4d4))
+
 ## [0.7.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.2...0.7.4) (2023-10-02)
 
 
