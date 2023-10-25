@@ -192,12 +192,18 @@ export class Pool extends Base {
   }
 
   async getPool(poolId: string) {
-    const result = await this.provider.getObject({
-      id: poolId,
-      options: { showContent: true },
-    });
-    validateObjectResponse(result, 'pool');
-    return this.parsePool(result);
+    return this.getCacheOrSet(
+      'pool',
+      async () => {
+        const result = await this.provider.getObject({
+          id: poolId,
+          options: { showContent: true },
+        });
+        validateObjectResponse(result, 'pool');
+        return this.parsePool(result);
+      },
+      1500,
+    );
   }
 
   async createPool(options: Pool.CreatePoolOptions): Promise<TransactionBlock> {
@@ -574,7 +580,27 @@ export class Pool extends Base {
     return types;
   }
 
-  protected parsePool(pool: SuiObjectResponse) {
+  async getFixedLiquidity(options: {
+    poolId: string;
+    priceA: string | undefined;
+    priceB: string | undefined;
+  }) {
+    const pool = await this.getPool(options.poolId);
+    const [coinA, coinB] = await Promise.all([
+      this.coin.getMetadata(pool.types[0]),
+      this.coin.getMetadata(pool.types[1]),
+    ]);
+
+    const liquidityA = new Decimal(this.math.scaleDown(pool.coin_a, coinA.decimals)).mul(
+      options.priceA ?? 1,
+    );
+    const liquidityB = new Decimal(this.math.scaleDown(pool.coin_b, coinB.decimals)).mul(
+      options.priceB ?? 1,
+    );
+    return liquidityA.plus(liquidityB);
+  }
+
+  protected parsePool(pool: SuiObjectResponse): Pool.Pool {
     const fields = pool as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
