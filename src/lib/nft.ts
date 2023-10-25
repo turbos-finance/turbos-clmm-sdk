@@ -3,7 +3,11 @@ import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
 import { getObjectFields, getObjectOwner } from './legacy';
-import { SuiObjectResponse } from '@mysten/sui.js/client';
+import type { SuiObjectResponse } from '@mysten/sui.js/client';
+import Decimal from 'decimal.js';
+import { collectFeesQuote } from '../utils/collect-fees-quote';
+import { collectRewardsQuote } from '../utils/collect-rewards-quote';
+import type { Pool } from './pool';
 
 export declare module NFT {
   export interface NftField {
@@ -161,6 +165,122 @@ export class NFT extends Base {
     });
 
     return txb;
+  }
+
+  async getUnclaimedFeesAndRewards(options: {
+    poolId: string;
+    position: NFT.PositionField;
+    getPrice(coinType: string): Promise<string | number | undefined>;
+  }) {
+    const { position, poolId } = options;
+    const [pool, tickLowerDetail, tickUpperDetail] = await Promise.all([
+      this.pool.getPool(poolId),
+      this.nft.getPositionTick(poolId, position.tick_lower_index),
+      this.nft.getPositionTick(poolId, position.tick_upper_index),
+    ]);
+    const opts = {
+      ...options,
+      pool,
+      tickLowerDetail: tickLowerDetail!,
+      tickUpperDetail: tickUpperDetail!,
+    };
+    const [fees, rewards] = await Promise.all([
+      this.getUnclaimedFees(opts),
+      this.getUnclaimedRewards(opts),
+    ]);
+
+    return {
+      fees: fees.toString(),
+      rewards: rewards.toString(),
+      total: fees.plus(rewards).toString(),
+    };
+  }
+
+  protected async getUnclaimedFees(options: {
+    pool: Pool.Pool;
+    position: NFT.PositionField;
+    getPrice(coinType: string): Promise<string | number | undefined>;
+    tickLowerDetail: NFT.PositionTick;
+    tickUpperDetail: NFT.PositionTick;
+  }) {
+    const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
+    const [coinA, coinB, priceA, priceB] = await Promise.all([
+      this.coin.getMetadata(pool.types[0]),
+      this.coin.getMetadata(pool.types[1]),
+      getPrice(pool.types[0]),
+      getPrice(pool.types[1]),
+    ]);
+    const collectFees = collectFeesQuote(this.math, {
+      pool,
+      position,
+      tickLowerDetail: tickLowerDetail!,
+      tickUpperDetail: tickUpperDetail!,
+    });
+    let feeOwedA = this.math.scaleDown(collectFees.feeOwedA, coinA.decimals);
+    let feeOwedB = this.math.scaleDown(collectFees.feeOwedB, coinB.decimals);
+
+    function isTooLarge(value: string, decimals: number) {
+      const max = new Decimal(1_000_000).mul(Decimal.pow(10, decimals));
+      return max.lt(value);
+    }
+
+    if (isTooLarge(feeOwedA, coinA.decimals)) feeOwedA = '0';
+    if (isTooLarge(feeOwedB, coinB.decimals)) feeOwedB = '0';
+
+    const unclaimedFeeA =
+      priceA === void 0 ? new Decimal(0) : new Decimal(priceA).mul(feeOwedA);
+    const unclaimedFeeB =
+      priceB === void 0 ? new Decimal(0) : new Decimal(priceB).mul(feeOwedB);
+
+    return unclaimedFeeA.plus(unclaimedFeeB);
+  }
+
+  protected async getUnclaimedRewards(options: {
+    pool: Pool.Pool;
+    position: NFT.PositionField;
+    getPrice(coinType: string): Promise<string | number | undefined>;
+    tickLowerDetail: NFT.PositionTick;
+    tickUpperDetail: NFT.PositionTick;
+  }) {
+    const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
+
+    const collectRewards = collectRewardsQuote(this.math, {
+      pool,
+      position,
+      tickLowerDetail: tickLowerDetail!,
+      tickUpperDetail: tickUpperDetail!,
+    });
+    const coinTypes = pool.reward_infos.map(
+      (reward) => '0x' + reward.fields.vault_coin_type.replace(/^0+(2::sui::SUI)$/, '$1'),
+    );
+    const coins = await Promise.all([
+      ...pool.reward_infos.map((_, index) => {
+        return this.coin.getMetadata(coinTypes[index]!);
+      }),
+    ]);
+    const prices = await Promise.all(
+      pool.reward_infos.map((_, index) => {
+        return getPrice(coinTypes[index]!);
+      }),
+    );
+    coins.forEach((coin, index) => {
+      collectRewards[index] = this.math.scaleDown(collectRewards[index]!, coin.decimals);
+    });
+    let unclaimedRewards = new Decimal(0);
+    pool.reward_infos.some((_, index) => {
+      const price = prices[index];
+      if (price) {
+        unclaimedRewards = unclaimedRewards.plus(
+          new Decimal(price).mul(collectRewards[index]!),
+        );
+        return false;
+      } else {
+        unclaimedRewards = unclaimedRewards.minus(-1);
+        return true;
+      }
+    });
+
+    return unclaimedRewards;
   }
 
   protected getObject(nftId: string): Promise<SuiObjectResponse> {
