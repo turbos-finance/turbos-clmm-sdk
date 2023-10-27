@@ -193,7 +193,7 @@ export class Pool extends Base {
 
   async getPool(poolId: string) {
     return this.getCacheOrSet(
-      'pool',
+      `pool-${poolId}`,
       async () => {
         const result = await this.provider.getObject({
           id: poolId,
@@ -601,7 +601,7 @@ export class Pool extends Base {
   }
 
   protected parsePool(pool: SuiObjectResponse): Pool.Pool {
-    const fields = pool as Pool.PoolFields;
+    const fields = getObjectFields(pool) as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
     this.getCacheOrSet('pool-type-' + objectId, async () => type);
