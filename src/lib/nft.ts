@@ -303,12 +303,16 @@ export class NFT extends Base {
       collectRewards[index] = this.math.scaleDown(collectRewards[index]!, coin.decimals);
     });
     let unclaimedRewards = new Decimal(0);
-    pool.reward_infos.forEach((_, index) => {
+    pool.reward_infos.some((_, index) => {
       const price = prices[index];
       if (price) {
         unclaimedRewards = unclaimedRewards.plus(
           new Decimal(price).mul(collectRewards[index]!),
         );
+        return false;
+      } else {
+        unclaimedRewards = unclaimedRewards.plus(1);
+        return true;
       }
     });
 
