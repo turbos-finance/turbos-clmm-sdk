@@ -200,7 +200,7 @@ export class NFT extends Base {
     const liquidityBUsd = new Decimal(amount[1].toString())
       .div(10 ** coin_b.decimals)
       .mul(priceB || 0);
-    return liquidityAUsd.plus(liquidityBUsd);
+    return liquidityAUsd.plus(liquidityBUsd).toString();
   }
 
   async getUnclaimedFeesAndRewards(options: {
