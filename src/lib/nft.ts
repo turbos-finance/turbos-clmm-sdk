@@ -167,6 +167,33 @@ export class NFT extends Base {
     return txb;
   }
 
+  async getPositionLiquidityUSD(options: {
+    poolId: string;
+    position: NFT.PositionField;
+    getPrice(coinType: string): Promise<string | number | undefined>;
+  }) {
+    const { position, poolId, getPrice } = options;
+    const pool = await this.pool.getPool(poolId);
+    const [[amountA, amountB], priceA, priceB] = await Promise.all([
+      this.pool.getTokenAmountsFromLiquidity({
+        currentSqrtPrice: new BN(pool.sqrt_price),
+        lowerSqrtPrice: new BN(
+          this.math.bitsToNumber(position.tick_lower_index.fields.bits),
+        ),
+        upperSqrtPrice: new BN(
+          this.math.bitsToNumber(position.tick_upper_index.fields.bits),
+        ),
+        liquidity: new BN(position.liquidity),
+      }),
+      getPrice(pool.types[0]),
+      getPrice(pool.types[1]),
+    ]);
+
+    const liquidityAUsd = amountA.mul(new BN(priceA || 0));
+    const liquidityBUsd = amountB.mul(new BN(priceB || 0));
+    return liquidityAUsd.add(liquidityBUsd);
+  }
+
   async getUnclaimedFeesAndRewards(options: {
     poolId: string;
     position: NFT.PositionField;
@@ -267,16 +294,12 @@ export class NFT extends Base {
       collectRewards[index] = this.math.scaleDown(collectRewards[index]!, coin.decimals);
     });
     let unclaimedRewards = new Decimal(0);
-    pool.reward_infos.some((_, index) => {
+    pool.reward_infos.forEach((_, index) => {
       const price = prices[index];
       if (price) {
         unclaimedRewards = unclaimedRewards.plus(
           new Decimal(price).mul(collectRewards[index]!),
         );
-        return false;
-      } else {
-        unclaimedRewards = unclaimedRewards.minus(-1);
-        return true;
       }
     });
 
