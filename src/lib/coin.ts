@@ -9,7 +9,7 @@ export class Coin extends Base {
   }
 
   async getMetadata(coinType: string) {
-    return this.getCacheOrSet('coin-metadata', async () => {
+    return this.getCacheOrSet(`coin-metadata-${coinType}`, async () => {
       const result = await this.provider.getCoinMetadata({ coinType });
       if (!result) {
         throw new Error(`Coin "${coinType}" is not found`);

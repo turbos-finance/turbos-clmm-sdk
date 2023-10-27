@@ -174,24 +174,33 @@ export class NFT extends Base {
   }) {
     const { position, poolId, getPrice } = options;
     const pool = await this.pool.getPool(poolId);
-    const [[amountA, amountB], priceA, priceB] = await Promise.all([
-      this.pool.getTokenAmountsFromLiquidity({
-        currentSqrtPrice: new BN(pool.sqrt_price),
-        lowerSqrtPrice: new BN(
-          this.math.bitsToNumber(position.tick_lower_index.fields.bits),
-        ),
-        upperSqrtPrice: new BN(
-          this.math.bitsToNumber(position.tick_upper_index.fields.bits),
-        ),
-        liquidity: new BN(position.liquidity),
-      }),
+    const amount = this.pool.getTokenAmountsFromLiquidity({
+      currentSqrtPrice: new BN(pool.sqrt_price),
+      lowerSqrtPrice: this.math.tickIndexToSqrtPriceX64(
+        this.math.bitsToNumber(position.tick_lower_index.fields.bits),
+      ),
+      upperSqrtPrice: this.math.tickIndexToSqrtPriceX64(
+        this.math.bitsToNumber(position.tick_upper_index.fields.bits),
+      ),
+      liquidity: new BN(
+        position.liquidity === undefined ? 100_000_000 : position.liquidity,
+      ),
+    });
+
+    const [priceA, priceB, coin_a, coin_b] = await Promise.all([
       getPrice(pool.types[0]),
       getPrice(pool.types[1]),
+      this.coin.getMetadata(pool.types[0]),
+      this.coin.getMetadata(pool.types[1]),
     ]);
 
-    const liquidityAUsd = amountA.mul(new BN(priceA || 0));
-    const liquidityBUsd = amountB.mul(new BN(priceB || 0));
-    return liquidityAUsd.add(liquidityBUsd);
+    const liquidityAUsd = new Decimal(amount[0].toString())
+      .div(10 ** coin_a.decimals)
+      .mul(priceA || 0);
+    const liquidityBUsd = new Decimal(amount[1].toString())
+      .div(10 ** coin_b.decimals)
+      .mul(priceB || 0);
+    return liquidityAUsd.plus(liquidityBUsd);
   }
 
   async getUnclaimedFeesAndRewards(options: {
