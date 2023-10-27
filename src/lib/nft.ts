@@ -170,9 +170,10 @@ export class NFT extends Base {
   async getPositionLiquidityUSD(options: {
     poolId: string;
     position: NFT.PositionField;
-    getPrice(coinType: string): Promise<string | number | undefined>;
+    priceA: string | undefined;
+    priceB: string | undefined;
   }) {
-    const { position, poolId, getPrice } = options;
+    const { position, poolId, priceA, priceB } = options;
     const pool = await this.pool.getPool(poolId);
     const amount = this.pool.getTokenAmountsFromLiquidity({
       currentSqrtPrice: new BN(pool.sqrt_price),
@@ -187,9 +188,7 @@ export class NFT extends Base {
       ),
     });
 
-    const [priceA, priceB, coin_a, coin_b] = await Promise.all([
-      getPrice(pool.types[0]),
-      getPrice(pool.types[1]),
+    const [coin_a, coin_b] = await Promise.all([
       this.coin.getMetadata(pool.types[0]),
       this.coin.getMetadata(pool.types[1]),
     ]);
