@@ -1,5 +1,30 @@
 
 
+# [1.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.6...1.0.0) (2023-10-27)
+
+
+### Bug Fixes
+
+* get pool and get meta data's cache name ([02d062e](https://github.com/turbos-finance/turbos-clmm-sdk/commit/02d062e3065b9d8a36397cd237c3d298998d7bd0))
+
+
+### Features
+
+* **nft:** add method getPositionLiquidityUSD ([d3fa4dc](https://github.com/turbos-finance/turbos-clmm-sdk/commit/d3fa4dc9ff912af18bfc628b57486f80ee5f5762))
+* **nft:** add method getUnclaimedFeesAndRewards ([45f1b55](https://github.com/turbos-finance/turbos-clmm-sdk/commit/45f1b55bcb5c240b85e63d6c4c1b15685934a238))
+* **pool:** add method getFixedLiquidity ([3ae09c1](https://github.com/turbos-finance/turbos-clmm-sdk/commit/3ae09c120249aaf9be6dd04f4bff6914eb594108))
+* upgrade sui to v0.44 ([6dc968b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/6dc968b58e589647dc5666996c98fc65b8c52ae6))
+
+
+### Reverts
+
+* reward claim ([d700f97](https://github.com/turbos-finance/turbos-clmm-sdk/commit/d700f979f77b03d2b2df4362e8cf9cd7d7659ca7))
+
+
+### BREAKING CHANGES
+
+* the minimium sui version now is 0.38
+
 ## [0.7.6](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.5...0.7.6) (2023-10-21)
 
 ## [0.7.5](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.4...0.7.5) (2023-10-21)
