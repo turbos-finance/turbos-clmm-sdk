@@ -148,6 +148,153 @@ export class NFT extends Base {
     };
   }
 
+  async getPositionAPR(opts: {
+    poolId: string;
+    tickLower: number;
+    tickUpper: number;
+    fees24h: string | number;
+    getPrice(coinType: string): Promise<string | number | undefined>;
+  }): Promise<{ fees: string; total: string; rewards: string }> {
+    const { poolId, getPrice, fees24h, tickLower, tickUpper } = opts;
+    const pool = await this.pool.getPool(poolId);
+    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.fields.bits);
+    const [coinA, coinB, priceA, priceB] = await Promise.all([
+      this.coin.getMetadata(pool.types[0]),
+      this.coin.getMetadata(pool.types[1]),
+      getPrice(pool.types[0]),
+      getPrice(pool.types[1]),
+    ]);
+
+    if (
+      !priceA ||
+      !priceB ||
+      tickLower >= tickUpper ||
+      tickCurrent <= tickLower ||
+      tickCurrent >= tickUpper
+    ) {
+      return { fees: '0', rewards: '0', total: '0' };
+    }
+
+    const { minTokenA, minTokenB } = this.getRemoveLiquidityQuote(
+      pool,
+      tickLower,
+      tickUpper,
+    );
+    const tokenValueA = new Decimal(
+      this.math.scaleDown(minTokenA.toString(), coinA.decimals),
+    ).mul(priceA);
+    const tokenValueB = new Decimal(
+      this.math.scaleDown(minTokenB.toString(), coinB.decimals),
+    ).mul(priceB);
+    const concentratedValue = tokenValueA.add(tokenValueB);
+
+    const feeApr = concentratedValue.isZero()
+      ? new Decimal(0)
+      : new Decimal(fees24h).mul(365).div(concentratedValue).mul(100);
+    let totalRewardApr = new Decimal(0);
+
+    await Promise.all(
+      pool.reward_infos.map(async (reward) => {
+        const { emissions_per_second } = reward.fields;
+        const coinType = this.coin.formatCoinType(reward.fields.vault_coin_type);
+        const [price, coin] = await Promise.all([
+          getPrice(coinType),
+          this.coin.getMetadata(coinType),
+        ]);
+        if (!emissions_per_second || emissions_per_second === '0' || !price) return;
+
+        totalRewardApr = totalRewardApr.add(
+          new Decimal(new BN(emissions_per_second).shrn(64).toString())
+            .div(10 ** coin.decimals)
+            .mul(31_536_000 /* seconds per year */)
+            .mul(price)
+            .div(concentratedValue)
+            .mul(100),
+        );
+      }),
+    );
+
+    return {
+      fees: feeApr.toString(),
+      rewards: totalRewardApr.toString(),
+      total: feeApr.plus(totalRewardApr).toString(),
+    };
+  }
+
+  protected getRemoveLiquidityQuote(
+    pool: Pool.PoolFields,
+    tickLower: number,
+    tickUpper: number,
+  ): { minTokenA: BN; minTokenB: BN } {
+    const ZERO = new BN(0);
+    const liquidity = new BN(pool.liquidity);
+    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.fields.bits);
+    const sqrtPriceLowerX64 = this.math.tickIndexToSqrtPriceX64(tickLower);
+    const sqrtPriceUpperX64 = this.math.tickIndexToSqrtPriceX64(tickUpper);
+
+    if (tickCurrent < tickLower) {
+      const estTokenA = this.getTokenAFromLiquidity(
+        liquidity,
+        sqrtPriceLowerX64,
+        sqrtPriceUpperX64,
+      );
+      return { minTokenA: this.adjustForSlippage(estTokenA), minTokenB: ZERO };
+    }
+
+    if (tickCurrent < tickUpper) {
+      const sqrtPriceX64 = new BN(pool.sqrt_price);
+      const estTokenA = this.getTokenAFromLiquidity(
+        liquidity,
+        sqrtPriceX64,
+        sqrtPriceUpperX64,
+      );
+      const estTokenB = this.getTokenBFromLiquidity(
+        liquidity,
+        sqrtPriceLowerX64,
+        sqrtPriceX64,
+      );
+      return {
+        minTokenA: this.adjustForSlippage(estTokenA),
+        minTokenB: this.adjustForSlippage(estTokenB),
+      };
+    }
+
+    const estTokenB = this.getTokenBFromLiquidity(
+      liquidity,
+      sqrtPriceLowerX64,
+      sqrtPriceUpperX64,
+    );
+    return { minTokenA: ZERO, minTokenB: this.adjustForSlippage(estTokenB) };
+  }
+
+  protected adjustForSlippage(n: BN): BN {
+    const slippageTolerance = {
+      numerator: new BN(0),
+      denominator: new BN(1000),
+    };
+    return n
+      .mul(slippageTolerance.denominator)
+      .div(slippageTolerance.denominator.add(slippageTolerance.numerator));
+  }
+
+  protected getTokenAFromLiquidity(
+    liquidity: BN,
+    sqrtPriceLowerX64: BN,
+    sqrtPriceUpperX64: BN,
+  ) {
+    const numerator = liquidity.mul(sqrtPriceUpperX64.sub(sqrtPriceLowerX64)).shln(64);
+    const denominator = sqrtPriceUpperX64.mul(sqrtPriceLowerX64);
+    return numerator.div(denominator);
+  }
+
+  protected getTokenBFromLiquidity(
+    liquidity: BN,
+    sqrtPriceLowerX64: BN,
+    sqrtPriceUpperX64: BN,
+  ) {
+    return liquidity.mul(sqrtPriceUpperX64.sub(sqrtPriceLowerX64)).shrn(64);
+  }
+
   async burn(options: NFT.BurnOptions): Promise<TransactionBlock> {
     const { pool, nft } = options;
     const txb = options.txb || new TransactionBlock();
@@ -285,8 +432,8 @@ export class NFT extends Base {
       tickLowerDetail: tickLowerDetail!,
       tickUpperDetail: tickUpperDetail!,
     });
-    const coinTypes = pool.reward_infos.map(
-      (reward) => '0x' + reward.fields.vault_coin_type.replace(/^0+(2::sui::SUI)$/, '$1'),
+    const coinTypes = pool.reward_infos.map((reward) =>
+      this.coin.formatCoinType(reward.fields.vault_coin_type),
     );
     const coins = await Promise.all([
       ...pool.reward_infos.map((_, index) => {
