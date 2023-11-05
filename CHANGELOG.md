@@ -1,5 +1,12 @@
 
 
+# [1.1.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.0.0...1.1.0) (2023-11-05)
+
+
+### Features
+
+* **nft:** add method getPositionAPR ([9d08fb7](https://github.com/turbos-finance/turbos-clmm-sdk/commit/9d08fb7b8dfd0d935c5a8beacf7ac35ebb6bf485))
+
 # [1.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.6...1.0.0) (2023-10-27)
 
 
