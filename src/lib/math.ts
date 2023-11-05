@@ -123,7 +123,7 @@ export class MathUtil {
   }
 
   scaleUp(value: Decimal.Value, decimals: number) {
-    return new Decimal(value).mul(Decimal.pow(10, decimals));
+    return new Decimal(value).mul(Decimal.pow(10, decimals)).toString();
   }
 
   bitsToNumber(bits: number | string, len: number = 32) {

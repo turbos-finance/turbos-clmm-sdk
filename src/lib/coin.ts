@@ -70,4 +70,17 @@ export class Coin extends Base {
       arguments: [],
     });
   }
+
+  formatCoinType(type: string, fillZero: boolean = false) {
+    const HASH_LENGTH = 64;
+    let address = type.replace(/^0x/i, '');
+    address = address.replace(/^0+(2::sui::SUI)$/, '$1');
+
+    const fill =
+      fillZero && address.length < HASH_LENGTH && type !== '2::sui:SUI'
+        ? '0'.repeat(HASH_LENGTH - address.length)
+        : '';
+
+    return '0x' + fill + address;
+  }
 }
