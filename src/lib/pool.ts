@@ -591,8 +591,8 @@ export class Pool extends Base {
 
   async getFixedLiquidity(options: {
     poolId: string;
-    priceA: string | undefined;
-    priceB: string | undefined;
+    priceA: string | number | undefined;
+    priceB: string | number | undefined;
   }) {
     const pool = await this.getPool(options.poolId);
     const [coinA, coinB] = await Promise.all([

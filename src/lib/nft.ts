@@ -317,8 +317,8 @@ export class NFT extends Base {
   async getPositionLiquidityUSD(options: {
     poolId: string;
     position: NFT.PositionField;
-    priceA: string | undefined;
-    priceB: string | undefined;
+    priceA: string | number | undefined;
+    priceB: string | number | undefined;
   }) {
     const { position, poolId, priceA, priceB } = options;
     const pool = await this.pool.getPool(poolId);
