@@ -371,10 +371,17 @@ export class NFT extends Base {
       this.getUnclaimedRewards(opts),
     ]);
 
+    const { unclaimedFees, ...restFees } = fees;
+    const { unclaimedRewards, ...restRewards } = rewards;
+
     return {
-      fees: fees.toString(),
-      rewards: rewards.toString(),
-      total: fees.plus(rewards).toString(),
+      fees: fees.unclaimedFees.toString(),
+      rewards: unclaimedRewards.toString(),
+      total: unclaimedFees.plus(unclaimedRewards).toString(),
+      fields: {
+        ...restFees,
+        ...restRewards,
+      },
     };
   }
 
@@ -398,23 +405,34 @@ export class NFT extends Base {
       tickLowerDetail: tickLowerDetail!,
       tickUpperDetail: tickUpperDetail!,
     });
-    let feeOwedA = this.math.scaleDown(collectFees.feeOwedA, coinA.decimals);
-    let feeOwedB = this.math.scaleDown(collectFees.feeOwedB, coinB.decimals);
+    let scaledFeeOwedA = this.math.scaleDown(collectFees.feeOwedA, coinA.decimals);
+    let scaledFeeOwedB = this.math.scaleDown(collectFees.feeOwedB, coinB.decimals);
 
     function isTooLarge(value: string, decimals: number) {
       const max = new Decimal(1_000_000).mul(Decimal.pow(10, decimals));
       return max.lt(value);
     }
 
-    if (isTooLarge(feeOwedA, coinA.decimals)) feeOwedA = '0';
-    if (isTooLarge(feeOwedB, coinB.decimals)) feeOwedB = '0';
+    if (isTooLarge(scaledFeeOwedA, coinA.decimals)) {
+      scaledFeeOwedA = '0';
+      collectFees.feeOwedA = '0';
+    }
+    if (isTooLarge(scaledFeeOwedB, coinB.decimals)) {
+      scaledFeeOwedB = '0';
+      collectFees.feeOwedB = '0';
+    }
 
     const unclaimedFeeA =
-      priceA === void 0 ? new Decimal(0) : new Decimal(priceA).mul(feeOwedA);
+      priceA === void 0 ? new Decimal(0) : new Decimal(priceA).mul(scaledFeeOwedA);
     const unclaimedFeeB =
-      priceB === void 0 ? new Decimal(0) : new Decimal(priceB).mul(feeOwedB);
+      priceB === void 0 ? new Decimal(0) : new Decimal(priceB).mul(scaledFeeOwedB);
 
-    return unclaimedFeeA.plus(unclaimedFeeB);
+    return {
+      unclaimedFees: unclaimedFeeA.plus(unclaimedFeeB),
+      scaledFeeOwedA,
+      scaledFeeOwedB,
+      ...collectFees,
+    };
   }
 
   protected async getUnclaimedRewards(options: {
@@ -432,6 +450,7 @@ export class NFT extends Base {
       tickLowerDetail: tickLowerDetail!,
       tickUpperDetail: tickUpperDetail!,
     });
+    const scaledCollectRewards = [...collectRewards] as typeof collectRewards;
     const coinTypes = pool.reward_infos.map((reward) =>
       this.coin.formatCoinType(reward.fields.vault_coin_type),
     );
@@ -446,14 +465,17 @@ export class NFT extends Base {
       }),
     );
     coins.forEach((coin, index) => {
-      collectRewards[index] = this.math.scaleDown(collectRewards[index]!, coin.decimals);
+      scaledCollectRewards[index] = this.math.scaleDown(
+        scaledCollectRewards[index]!,
+        coin.decimals,
+      );
     });
     let unclaimedRewards = new Decimal(0);
     pool.reward_infos.some((_, index) => {
       const price = prices[index];
       if (price) {
         unclaimedRewards = unclaimedRewards.plus(
-          new Decimal(price).mul(collectRewards[index]!),
+          new Decimal(price).mul(scaledCollectRewards[index]!),
         );
         return false;
       } else {
@@ -462,7 +484,11 @@ export class NFT extends Base {
       }
     });
 
-    return unclaimedRewards;
+    return {
+      unclaimedRewards,
+      collectRewards,
+      scaledCollectRewards,
+    };
   }
 
   protected getObject(nftId: string): Promise<SuiObjectResponse> {
