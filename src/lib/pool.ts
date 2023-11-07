@@ -226,6 +226,15 @@ export class Pool extends Base {
     ]);
 
     const txb = options.txb || new TransactionBlock();
+    const coinAObjects =
+      coinIdsA.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
+    const coinBObjects =
+      coinIdsB.length > 0
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
+
     txb.moveCall({
       target: `${contract.PackageId}::pool_factory::deploy_pool_and_mint`,
       typeArguments: [coinTypeA, coinTypeB, fee.type],
@@ -240,10 +249,10 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA),
+          objects: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB),
+          objects: coinBObjects,
         }),
         // tick_lower_index
         txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
