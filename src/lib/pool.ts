@@ -584,12 +584,13 @@ export class Pool extends Base {
     const fields = getObjectFields(pool) as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
-    this.getCacheOrSet('pool-type-' + objectId, async () => type);
+    const types = this.parsePoolType(type, 3);
+    this.getCacheOrSet('pool-type-' + objectId, async () => types);
     return {
       ...fields,
       objectId,
       type,
-      types: this.parsePoolType(type, 3),
+      types,
     };
   }
 
