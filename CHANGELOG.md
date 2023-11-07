@@ -1,5 +1,12 @@
 
 
+## [1.1.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.1.0...1.1.1) (2023-11-07)
+
+
+### Bug Fixes
+
+* **pool:** create pool create 0 objects ([4421a25](https://github.com/turbos-finance/turbos-clmm-sdk/commit/4421a25681ad8cbd96e9d8dd4e939b3cd5dd4d5d))
+
 # [1.1.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.0.0...1.1.0) (2023-11-05)
 
 
