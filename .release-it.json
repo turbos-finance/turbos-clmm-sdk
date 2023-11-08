@@ -2,13 +2,14 @@
   "git": {
     "push": true,
     "commitMessage": "chore: bump version v${version}",
-    "requireBranch": "main"
+    "requireBranch": "v0.x"
   },
   "github": {
     "release": true
   },
   "npm": {
-    "publish": true
+    "publish": true,
+    "tag": "legacy"
   },
   "plugins": {
     "@release-it/conventional-changelog": {

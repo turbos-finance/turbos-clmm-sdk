@@ -3,11 +3,10 @@ name: Release
 on:
   push:
     branches:
-      - 'main'
+      - 'v0.x'
 
 jobs:
   release:
-    if: "contains(toJson(github.event.commits), '[release]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
