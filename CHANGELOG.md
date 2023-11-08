@@ -1,5 +1,13 @@
 
 
+## [0.7.7](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.6...0.7.7) (2023-11-08)
+
+
+### Bug Fixes
+
+* **pool:** cache incorrect pool types ([fb6599e](https://github.com/turbos-finance/turbos-clmm-sdk/commit/fb6599e739bd958738ef7353b4524e85e92688ba))
+* **pool:** create pool create 0 objects ([2d22fe7](https://github.com/turbos-finance/turbos-clmm-sdk/commit/2d22fe7d96529b235694334bf7dc6245998300d0))
+
 ## [0.7.6](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.5...0.7.6) (2023-10-21)
 
 ## [0.7.5](https://github.com/turbos-finance/turbos-clmm-sdk/compare/0.7.4...0.7.5) (2023-10-21)
