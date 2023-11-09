@@ -589,36 +589,48 @@ export class Pool extends Base {
     return types;
   }
 
+  /**
+   * Calculate liquidity by given amount and price.
+   * It's useful for increase liquidity or creating pool which includes increase liquidity.
+   */
   async getFixedLiquidity(options: {
-    poolId: string;
-    priceA: string | undefined;
-    priceB: string | undefined;
+    coinTypeA: string;
+    coinTypeB: string;
+    amountA: string | number;
+    amountB: string | number;
+    priceA: string | number | undefined;
+    priceB: string | number | undefined;
   }) {
-    const pool = await this.getPool(options.poolId);
+    const { coinTypeA, coinTypeB, amountA, amountB } = options;
     const [coinA, coinB] = await Promise.all([
-      this.coin.getMetadata(pool.types[0]),
-      this.coin.getMetadata(pool.types[1]),
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
     ]);
 
-    const liquidityA = new Decimal(this.math.scaleDown(pool.coin_a, coinA.decimals)).mul(
+    const liquidityA = new Decimal(this.math.scaleDown(amountA, coinA.decimals)).mul(
       options.priceA ?? 1,
     );
-    const liquidityB = new Decimal(this.math.scaleDown(pool.coin_b, coinB.decimals)).mul(
+    const liquidityB = new Decimal(this.math.scaleDown(amountB, coinB.decimals)).mul(
       options.priceB ?? 1,
     );
-    return liquidityA.plus(liquidityB);
+    return {
+      liquidityA: liquidityA.toString(),
+      liquidityB: liquidityB.toString(),
+      liquidity: liquidityA.plus(liquidityB).toString(),
+    };
   }
 
   protected parsePool(pool: SuiObjectResponse): Pool.Pool {
     const fields = getObjectFields(pool) as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
-    this.getCacheOrSet('pool-type-' + objectId, async () => type);
+    const types = this.parsePoolType(type, 3);
+    this.getCacheOrSet('pool-type-' + objectId, async () => types);
     return {
       ...fields,
       objectId,
       type,
-      types: this.parsePoolType(type, 3),
+      types,
     };
   }
 

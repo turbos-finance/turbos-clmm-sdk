@@ -64,7 +64,8 @@ export const collectRewardsQuote = (
     let rewardGrowthsBelowX64: BN = adjustedRewardGrowthGlobalX64;
     if (tickLowerDetail.initialized) {
       rewardGrowthsBelowX64 =
-        pool.tick_current_index.fields.bits < position.tick_lower_index.fields.bits
+        math.bitsToNumber(pool.tick_current_index.fields.bits) <
+        math.bitsToNumber(position.tick_lower_index.fields.bits)
           ? math.subUnderflowU128(
               adjustedRewardGrowthGlobalX64,
               tickLowerRewardGrowthsOutsideX64,
@@ -75,7 +76,8 @@ export const collectRewardsQuote = (
     let rewardGrowthsAboveX64: BN = new BN(0);
     if (tickUpperDetail.initialized) {
       rewardGrowthsAboveX64 =
-        pool.tick_current_index.fields.bits < position.tick_upper_index.fields.bits
+        math.bitsToNumber(pool.tick_current_index.fields.bits) <
+        math.bitsToNumber(position.tick_upper_index.fields.bits)
           ? tickUpperRewardGrowthsOutsideX64
           : math.subUnderflowU128(
               adjustedRewardGrowthGlobalX64,
@@ -90,19 +92,18 @@ export const collectRewardsQuote = (
 
     // Knowing the growth of the reward checkpoint for the position, calculate and increment the amount owed for each reward.
     const amountOwedX64 = positionRewardInfo.amountOwed.shln(64);
-    rewardOwed[i] = rewardGrowthInsideX64.gte(positionRewardInfo.growthInsideCheckpoint)
-      ? amountOwedX64
-          .add(
-            math
-              .subUnderflowU128(
-                rewardGrowthInsideX64,
-                positionRewardInfo.growthInsideCheckpoint,
-              )
-              .mul(positionLiquidity),
+
+    rewardOwed[i] = amountOwedX64
+      .add(
+        math
+          .subUnderflowU128(
+            rewardGrowthInsideX64,
+            positionRewardInfo.growthInsideCheckpoint,
           )
-          .shrn(64)
-          .toString()
-      : '0';
+          .mul(positionLiquidity),
+      )
+      .shrn(64)
+      .toString();
   }
 
   return rewardOwed;
