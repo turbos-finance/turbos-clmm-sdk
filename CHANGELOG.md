@@ -1,5 +1,13 @@
 
 
+## [2.0.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.0...2.0.1) (2023-11-09)
+
+
+### Bug Fixes
+
+* type is sui type and when amount eq 0 return null array ([cb883ec](https://github.com/turbos-finance/turbos-clmm-sdk/commit/cb883ec4468bee7479f7590aa6677ea89334a79b))
+* use sdk normalizeSuiAddress and test ([bd53dcd](https://github.com/turbos-finance/turbos-clmm-sdk/commit/bd53dcda139b9eb048b99315d1ee1e31d8491b85))
+
 # [2.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.1.1...2.0.0) (2023-11-09)
 
 
