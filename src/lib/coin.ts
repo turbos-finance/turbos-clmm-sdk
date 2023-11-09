@@ -2,10 +2,14 @@ import { TransactionObjectArgument, TransactionBlock } from '@mysten/sui.js/tran
 import { PaginatedCoins } from '@mysten/sui.js/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
+import { normalizeSuiAddress } from '@mysten/sui.js/utils';
 
 export class Coin extends Base {
   isSUI(coinType: string) {
-    return coinType.toLowerCase().indexOf('sui') > -1;
+    return (
+      normalizeSuiAddress(coinType) ===
+      '0x000000000000000000000000000000000000000000000000000002::sui::sui'
+    );
   }
 
   async getMetadata(coinType: string) {
@@ -23,6 +27,10 @@ export class Coin extends Base {
     coinType: string,
     expectedAmount: Decimal,
   ): Promise<string[]> {
+    if (expectedAmount.eq(0)) {
+      return [];
+    }
+
     const coins: PaginatedCoins['data'][number][] = [];
     const coinIds: string[] = [];
     let totalAmount = new Decimal(0);
