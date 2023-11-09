@@ -1,5 +1,25 @@
 
 
+# [2.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.1.1...2.0.0) (2023-11-09)
+
+
+### Bug Fixes
+
+* **nft,pool:** price should accepts number literal ([9394128](https://github.com/turbos-finance/turbos-clmm-sdk/commit/939412823d444b4277bc7a64c01c4ecb7d9b5b46))
+* **nft:** calculate too large unclaimed rewards in edge case ([a583d9f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/a583d9f53d9464e4d423cdba2c903b4360660a58))
+* **pool:** cache incorrect pool types ([eee74c3](https://github.com/turbos-finance/turbos-clmm-sdk/commit/eee74c37b8a4159242d6039c0a5807af5f0c4540))
+
+
+### Features
+
+* **nft:** getUnclaimedFeesAndRewards returns extra fields ([f541cec](https://github.com/turbos-finance/turbos-clmm-sdk/commit/f541cec6a1fa42d8fa19f488784d96626bfd1dfc))
+* **pool:** rewrite getFixedLiquidity logic ([b1f9a8b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/b1f9a8ba053cf27151c0923a540cc643c826d4b5))
+
+
+### BREAKING CHANGES
+
+* **pool:** getFixedLiquidity changed function signature
+
 ## [1.1.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/1.1.0...1.1.1) (2023-11-07)
 
 
