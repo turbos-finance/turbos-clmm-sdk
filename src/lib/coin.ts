@@ -5,7 +5,7 @@ import { Base } from './base';
 
 export class Coin extends Base {
   isSUI(coinType: string) {
-    return coinType.toLowerCase().indexOf('sui') > -1;
+    return coinType.toLowerCase().indexOf('::sui::sui') > -1;
   }
 
   async getMetadata(coinType: string) {
@@ -23,6 +23,10 @@ export class Coin extends Base {
     coinType: string,
     expectedAmount: Decimal,
   ): Promise<string[]> {
+    if (expectedAmount.eq(0)) {
+      return [];
+    }
+
     const coins: PaginatedCoins['data'][number][] = [];
     const coinIds: string[] = [];
     let totalAmount = new Decimal(0);
