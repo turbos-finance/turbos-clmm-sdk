@@ -169,7 +169,7 @@ export class NFT extends Base {
       !priceA ||
       !priceB ||
       tickLower >= tickUpper ||
-      tickCurrent <= tickLower ||
+      tickCurrent < tickLower ||
       tickCurrent >= tickUpper
     ) {
       return { fees: '0', rewards: '0', total: '0' };
