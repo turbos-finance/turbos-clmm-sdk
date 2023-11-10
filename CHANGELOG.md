@@ -1,5 +1,12 @@
 
 
+## [2.0.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.1...2.0.2) (2023-11-10)
+
+
+### Bug Fixes
+
+* rewards when current tick eq lower tick ([7a56749](https://github.com/turbos-finance/turbos-clmm-sdk/commit/7a56749ef88854e6f43b32f9fecb0fedc00f6421))
+
 ## [2.0.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.0...2.0.1) (2023-11-09)
 
 
