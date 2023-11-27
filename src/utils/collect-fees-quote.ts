@@ -1,4 +1,4 @@
-import type { MathUtil, NFT, Pool } from '../lib';
+import type { MathUtil, NFT, Pool, math } from '../lib';
 import BN from 'bn.js';
 
 export const collectFeesQuote = (
@@ -24,7 +24,11 @@ export const collectFeesQuote = (
 
   let feeGrowthBelowA: BN, feeGrowthBelowB: BN, feeGrowthAboveA: BN, feeGrowthAboveB: BN;
 
-  if (pool.tick_current_index.fields.bits < position.tick_lower_index.fields.bits) {
+  const currentTick = math.bitsToNumber(pool.tick_current_index.fields.bits);
+  const lowerTick = math.bitsToNumber(position.tick_lower_index.fields.bits);
+  const upperTick = math.bitsToNumber(position.tick_upper_index.fields.bits);
+
+  if (currentTick < lowerTick) {
     feeGrowthBelowA = math.subUnderflowU128(
       feeGrowthGlobalA,
       tickLowerDetail.feeGrowthOutsideA,
@@ -38,7 +42,7 @@ export const collectFeesQuote = (
     feeGrowthBelowB = tickLowerDetail.feeGrowthOutsideB;
   }
 
-  if (pool.tick_current_index.fields.bits < position.tick_upper_index.fields.bits) {
+  if (currentTick < upperTick) {
     feeGrowthAboveA = tickUpperDetail.feeGrowthOutsideA;
     feeGrowthAboveB = tickUpperDetail.feeGrowthOutsideB;
   } else {
