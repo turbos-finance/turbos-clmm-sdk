@@ -1,5 +1,12 @@
 
 
+## [2.0.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.2...2.0.3) (2023-11-27)
+
+
+### Bug Fixes
+
+* utils collectFeesQuote bits to tick number ([c6c5565](https://github.com/turbos-finance/turbos-clmm-sdk/commit/c6c5565eed46073fcdc0012340c534a0c5addcce))
+
 ## [2.0.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.1...2.0.2) (2023-11-10)
 
 
