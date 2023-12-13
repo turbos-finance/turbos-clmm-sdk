@@ -1,5 +1,12 @@
 
 
+## [2.0.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.3...2.0.4) (2023-12-13)
+
+
+### Bug Fixes
+
+* computeSwapResult pools map devinspect ([45dd4cf](https://github.com/turbos-finance/turbos-clmm-sdk/commit/45dd4cf1c19fef6c9dd5168b98faef0e02914019))
+
 ## [2.0.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.2...2.0.3) (2023-11-27)
 
 
