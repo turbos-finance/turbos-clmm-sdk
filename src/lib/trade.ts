@@ -137,10 +137,9 @@ export class Trade extends Base {
   ): Promise<Trade.ComputedSwapResult[]> {
     const { pools, amountSpecified, amountSpecifiedIsInput, address } = options;
     const contract = await this.contract.getConfig();
-    const txb = new TransactionBlock();
-
-    await Promise.all(
+    const results = await Promise.all(
       pools.map(async ({ pool, a2b }) => {
+        const txb = new TransactionBlock();
         const typeArguments = await this.pool.getPoolTypeArguments(pool);
 
         txb.moveCall({
@@ -168,19 +167,20 @@ export class Trade extends Base {
             txb.object(contract.Versioned),
           ],
         });
+        const result = await this.provider.devInspectTransactionBlock({
+          transactionBlock: txb,
+          sender: address,
+        });
+
+        if (result.error) {
+          return;
+        }
+
+        return result.events[0]!.parsedJson as Trade.ComputedSwapResult;
       }),
     );
 
-    const result = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
-    });
-    if (result.error) {
-      throw new Error(result.error);
-    }
-    return result.events.map((event) => {
-      return event.parsedJson as Trade.ComputedSwapResult;
-    });
+    return results.filter((res) => res) as Trade.ComputedSwapResult[];
   }
 
   protected getFunctionNameAndTypeArguments(

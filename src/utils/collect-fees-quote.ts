@@ -1,4 +1,4 @@
-import type { MathUtil, NFT, Pool, math } from '../lib';
+import type { MathUtil, NFT, Pool } from '../lib';
 import BN from 'bn.js';
 
 export const collectFeesQuote = (
