@@ -160,11 +160,9 @@ export class Pool extends Base {
     } while (poolFactories.hasNextPage);
 
     if (!poolFactoryIds.length) return [];
-    const poolFactoryInfos = await suiKit.multiGetObjects(
-      this.provider,
-      poolFactoryIds,
-      { showContent: true },
-    )
+    const poolFactoryInfos = await suiKit.multiGetObjects(this.provider, poolFactoryIds, {
+      showContent: true,
+    });
     const poolIds = poolFactoryInfos.map((info) => {
       const fields = getObjectFields(info) as {
         value: {
@@ -178,11 +176,9 @@ export class Pool extends Base {
     });
 
     if (!poolIds.length) return [];
-    let pools = await suiKit.multiGetObjects(
-      this.provider,
-      poolIds,
-      { showContent: true },
-    )
+    let pools = await suiKit.multiGetObjects(this.provider, poolIds, {
+      showContent: true,
+    });
     if (!withLocked) {
       pools = pools.filter((pool) => {
         const fields = getObjectFields(pool) as Pool.PoolFields;
