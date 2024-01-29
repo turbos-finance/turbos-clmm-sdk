@@ -1,5 +1,12 @@
 
 
+## [2.0.5](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.4...2.0.5) (2024-01-29)
+
+
+### Bug Fixes
+
+* add sui kit until and multiGetObjects max 50 get ([557990a](https://github.com/turbos-finance/turbos-clmm-sdk/commit/557990a86c8a5efe66949b9eef4c429586ba2ea3))
+
 ## [2.0.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.3...2.0.4) (2023-12-13)
 
 
