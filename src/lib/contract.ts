@@ -2,6 +2,7 @@
 import { Network } from '../constants';
 import { Base } from './base';
 import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
+import * as suiKit from '../utils/sui-kit';
 export declare module Contract {
   export interface Fee {
     fee: number;
@@ -31,9 +32,8 @@ export class Contract extends Base {
     return this.getCacheOrSet('fees', async () => {
       const contractJSON = await this.fetchJSON();
       const fees = contractJSON[this.network].fee;
-      const objs = await this.provider.multiGetObjects({
-        ids: Object.values(fees),
-        options: { showContent: true },
+      const objs = await suiKit.multiGetObjects(this.provider, Object.values(fees), {
+        showContent: true,
       });
       return objs.map((obj) => {
         const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };

@@ -7,6 +7,7 @@ import { Base } from './base';
 import BN from 'bn.js';
 import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui.js/client';
 import { getObjectFields, getObjectId, getObjectType } from './legacy';
+import * as suiKit from '../utils/sui-kit';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -159,9 +160,8 @@ export class Pool extends Base {
     } while (poolFactories.hasNextPage);
 
     if (!poolFactoryIds.length) return [];
-    const poolFactoryInfos = await this.provider.multiGetObjects({
-      ids: poolFactoryIds,
-      options: { showContent: true },
+    const poolFactoryInfos = await suiKit.multiGetObjects(this.provider, poolFactoryIds, {
+      showContent: true,
     });
     const poolIds = poolFactoryInfos.map((info) => {
       const fields = getObjectFields(info) as {
@@ -176,11 +176,9 @@ export class Pool extends Base {
     });
 
     if (!poolIds.length) return [];
-    let pools = await this.provider.multiGetObjects({
-      ids: poolIds,
-      options: { showContent: true },
+    let pools = await suiKit.multiGetObjects(this.provider, poolIds, {
+      showContent: true,
     });
-
     if (!withLocked) {
       pools = pools.filter((pool) => {
         const fields = getObjectFields(pool) as Pool.PoolFields;
