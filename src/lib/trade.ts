@@ -7,7 +7,7 @@ import { MIN_SQRT_PRICE, MAX_SQRT_PRICE } from '../constants';
 import { BN } from 'bn.js';
 
 const ONE_MINUTE = 60 * 1000;
-const MAX_TICK_STEP = 200;
+const MAX_TICK_STEP = 100;
 
 export declare module Trade {
   export interface SwapOptions {
