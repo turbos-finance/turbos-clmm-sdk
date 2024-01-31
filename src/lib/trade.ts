@@ -4,14 +4,17 @@ import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
 import {
-  MIN_TICK_INDEX,
-  MAX_TICK_INDEX,
   MIN_SQRT_PRICE,
   MAX_SQRT_PRICE,
+  MIN_TICK_INDEX,
+  MAX_TICK_INDEX,
 } from '../constants';
 import { BN } from 'bn.js';
+import * as suiKit from '../utils/sui-kit';
+import { getMoveObjectType, getObjectFields } from './legacy';
 
 const ONE_MINUTE = 60 * 1000;
+const MAX_TICK_STEP = 100;
 
 export declare module Trade {
   export interface SwapOptions {
@@ -41,6 +44,7 @@ export declare module Trade {
     address: string;
     amountSpecified: string | number;
     amountSpecifiedIsInput: boolean;
+    tickStep?: number;
   }
 
   export interface ComputedSwapResult {
@@ -135,52 +139,63 @@ export class Trade extends Base {
   async computeSwapResult(
     options: Trade.ComputeSwapResultOptions,
   ): Promise<Trade.ComputedSwapResult[]> {
-    const { pools, amountSpecified, amountSpecifiedIsInput, address } = options;
+    const { pools, amountSpecified, amountSpecifiedIsInput, address, tickStep } = options;
     const contract = await this.contract.getConfig();
-    const results = await Promise.all(
-      pools.map(async ({ pool, a2b }) => {
-        const txb = new TransactionBlock();
-        const typeArguments = await this.pool.getPoolTypeArguments(pool);
+    const poolIds = pools.map((pool) => pool.pool);
+    let poolResult = await suiKit.multiGetObjects(this.provider, poolIds, {
+      showContent: true,
+    });
+    const txb = new TransactionBlock();
+    poolResult.map(async (pool) => {
+      const fields = getObjectFields(pool) as Pool.PoolFields;
+      const _pool = pools.find((item) => item.pool === fields.id.id);
 
-        txb.moveCall({
-          target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
-          typeArguments: typeArguments,
-          arguments: [
-            // pool
-            txb.object(pool),
-            // a_to_b
-            txb.pure(a2b, 'bool'),
-            // amount_specified
-            txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
-            // amount_specified_is_input
-            txb.pure(amountSpecifiedIsInput, 'bool'),
-            // sqrt_price_limit
-            txb.pure(
-              this.math
-                .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
-                .toString(),
-              'u128',
-            ),
-            // clock
-            txb.object(SUI_CLOCK_OBJECT_ID),
-            // versioned
-            txb.object(contract.Versioned),
-          ],
-        });
-        const result = await this.provider.devInspectTransactionBlock({
-          transactionBlock: txb,
-          sender: address,
-        });
+      const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
+      let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);
+      let max_tick = current_tick + fields.tick_spacing * (tickStep || MAX_TICK_STEP);
+      min_tick = min_tick < MIN_TICK_INDEX ? MIN_TICK_INDEX : min_tick;
+      max_tick = max_tick > MAX_TICK_INDEX ? MAX_TICK_INDEX : max_tick;
 
-        if (result.error) {
-          return;
-        }
+      const types = this.pool.parsePoolType(getMoveObjectType(pool)!);
 
-        return result.events[0]!.parsedJson as Trade.ComputedSwapResult;
-      }),
-    );
+      txb.moveCall({
+        target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
+        typeArguments: types,
+        arguments: [
+          // pool
+          txb.object(fields.id.id),
+          // a_to_b
+          txb.pure(_pool!.a2b, 'bool'),
+          // amount_specified
+          txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
+          // amount_specified_is_input
+          txb.pure(amountSpecifiedIsInput, 'bool'),
+          // sqrt_price_limit
+          txb.pure(
+            this.math
+              .tickIndexToSqrtPriceX64(_pool!.a2b ? min_tick : max_tick)
+              .toString(),
+            'u128',
+          ),
+          // clock
+          txb.object(SUI_CLOCK_OBJECT_ID),
+          // versioned
+          txb.object(contract.Versioned),
+        ],
+      });
+    });
+    const result = await this.provider.devInspectTransactionBlock({
+      transactionBlock: txb,
+      sender: address,
+    });
 
-    return results.filter((res) => res) as Trade.ComputedSwapResult[];
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.events.map((event) => {
+      return event.parsedJson as Trade.ComputedSwapResult;
+    });
   }
 
   protected getFunctionNameAndTypeArguments(
