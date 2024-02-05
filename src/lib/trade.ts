@@ -11,7 +11,7 @@ import {
 } from '../constants';
 import { BN } from 'bn.js';
 import * as suiKit from '../utils/sui-kit';
-import { getMoveObjectType, getObjectFields } from './legacy';
+import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
 
 const ONE_MINUTE = 60 * 1000;
 const MAX_TICK_STEP = 100;
@@ -43,6 +43,13 @@ export declare module Trade {
     pools: { pool: string; a2b: boolean }[];
     address: string;
     amountSpecified: string | number;
+    amountSpecifiedIsInput: boolean;
+    tickStep?: number;
+  }
+
+  export interface ComputeSwapResultOptionsV2 {
+    pools: { pool: string; a2b: boolean; amountSpecified: string | number }[];
+    address: string;
     amountSpecifiedIsInput: boolean;
     tickStep?: number;
   }
@@ -175,6 +182,72 @@ export class Trade extends Base {
             this.math
               .tickIndexToSqrtPriceX64(_pool!.a2b ? min_tick : max_tick)
               .toString(),
+            'u128',
+          ),
+          // clock
+          txb.object(SUI_CLOCK_OBJECT_ID),
+          // versioned
+          txb.object(contract.Versioned),
+        ],
+      });
+    });
+    const result = await this.provider.devInspectTransactionBlock({
+      transactionBlock: txb,
+      sender: address,
+    });
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.events.map((event) => {
+      return event.parsedJson as Trade.ComputedSwapResult;
+    });
+  }
+
+  async computeSwapResultV2(
+    options: Trade.ComputeSwapResultOptionsV2,
+  ): Promise<Trade.ComputedSwapResult[]> {
+    const { pools, amountSpecifiedIsInput, address, tickStep } = options;
+    const contract = await this.contract.getConfig();
+    const poolIds = pools.map((pool) => pool.pool);
+    let poolResults = await suiKit.multiGetObjects(
+      this.provider,
+      Array.from(new Set(poolIds)),
+      {
+        showContent: true,
+      },
+    );
+    const txb = new TransactionBlock();
+    pools.forEach(async (pool) => {
+      const poolObject = poolResults.find(
+        (poolResult) => getObjectId(poolResult) === pool.pool,
+      )!;
+      const fields = getObjectFields(poolObject) as Pool.PoolFields;
+
+      const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
+      let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);
+      let max_tick = current_tick + fields.tick_spacing * (tickStep || MAX_TICK_STEP);
+      min_tick = min_tick < MIN_TICK_INDEX ? MIN_TICK_INDEX : min_tick;
+      max_tick = max_tick > MAX_TICK_INDEX ? MAX_TICK_INDEX : max_tick;
+
+      const types = this.pool.parsePoolType(getMoveObjectType(poolObject)!);
+
+      txb.moveCall({
+        target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
+        typeArguments: types,
+        arguments: [
+          // pool
+          txb.object(fields.id.id),
+          // a_to_b
+          txb.pure(pool.a2b, 'bool'),
+          // amount_specified
+          txb.pure(new Decimal(pool.amountSpecified).toFixed(0), 'u128'),
+          // amount_specified_is_input
+          txb.pure(amountSpecifiedIsInput, 'bool'),
+          // sqrt_price_limit
+          txb.pure(
+            this.math.tickIndexToSqrtPriceX64(pool.a2b ? min_tick : max_tick).toString(),
             'u128',
           ),
           // clock
