@@ -36,6 +36,7 @@ export declare module Trade {
     amountB: string | number;
     amountSpecifiedIsInput: boolean;
     slippage: string;
+    deadline?: number;
     txb?: TransactionBlock;
   }
 
@@ -134,7 +135,7 @@ export class Trade extends Base {
         ...sqrtPrices.map((price) => txb.pure(price, 'u128')),
         txb.pure(amountSpecifiedIsInput, 'bool'),
         txb.pure(address, 'address'),
-        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],
