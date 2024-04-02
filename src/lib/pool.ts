@@ -24,6 +24,7 @@ export declare module Pool {
      * Acceptable wasted amount. Range: `[0, 100)`, unit: `%`
      */
     slippage: string | number;
+    deadline?: number;
     txb?: TransactionBlock;
   }
 
@@ -68,7 +69,7 @@ export declare module Pool {
       CollectRewardOptions {}
 
   export interface CollectFeeOptions
-    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address'> {
+    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
     /**
      * NFT ID
      */
@@ -78,7 +79,7 @@ export declare module Pool {
   }
 
   export interface CollectRewardOptions
-    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address'> {
+    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
     /**
      * NFT ID
      */
@@ -267,7 +268,7 @@ export class Pool extends Base {
         // recipient
         txb.pure(address, 'address'),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE), 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -336,7 +337,7 @@ export class Pool extends Base {
         // recipient
         txb.pure(address, 'address'),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE), 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -395,7 +396,7 @@ export class Pool extends Base {
         txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -431,7 +432,7 @@ export class Pool extends Base {
         txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
         txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -481,7 +482,7 @@ export class Pool extends Base {
         //recipient
         txb.pure(address),
         // deadline
-        txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
@@ -510,7 +511,7 @@ export class Pool extends Base {
           txb.pure(index, 'u64'),
           txb.pure(rewardAmounts[index], 'u64'), //TODO
           txb.pure(address),
-          txb.pure(Date.now() + ONE_MINUTE * 3, 'u64'),
+          txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
           txb.object(SUI_CLOCK_OBJECT_ID),
           txb.object(contract.Versioned),
         ],
