@@ -1,5 +1,12 @@
 
 
+# [2.2.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.1.0...2.2.0) (2024-03-19)
+
+
+### Features
+
+* update sui sdk 0.50.1 version ([c7d78e4](https://github.com/turbos-finance/turbos-clmm-sdk/commit/c7d78e4fae167c075a10bf7a1cf47361c55837c6))
+
 # [2.1.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.0.6...2.1.0) (2024-02-07)
 
 
