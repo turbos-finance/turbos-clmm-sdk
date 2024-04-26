@@ -719,7 +719,6 @@ export class Vault extends Base {
       address,
     });
 
-
     const [coinA, coinB] = await Promise.all([
       this.coin.getMetadata(typeArguments[0]),
       this.coin.getMetadata(typeArguments[1]),
