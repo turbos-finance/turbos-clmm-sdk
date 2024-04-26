@@ -13,7 +13,7 @@ import { BN } from 'bn.js';
 import * as suiKit from '../utils/sui-kit';
 import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
 
-const ONE_MINUTE = 60 * 1000;
+export const ONE_MINUTE = 60 * 1000;
 const MAX_TICK_STEP = 100;
 
 export declare module Trade {
@@ -410,7 +410,7 @@ export class Trade extends Base {
     };
   }
 
-  protected amountOutWithSlippage(
+  amountOutWithSlippage(
     amountOut: Decimal,
     slippage: string,
     amountSpecifiedIsInput: boolean,
@@ -424,7 +424,7 @@ export class Trade extends Base {
     return new Decimal(amountOut).mul(plus).toFixed(0);
   }
 
-  protected sqrtPriceWithSlippage(
+  sqrtPriceWithSlippage(
     price: Decimal,
     slippage: string,
     a2b: boolean,
