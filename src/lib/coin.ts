@@ -1,4 +1,7 @@
-import { TransactionObjectArgument, TransactionBlock } from '@mysten/sui.js/transactions';
+import {
+  type TransactionObjectArgument,
+  TransactionBlock,
+} from '@mysten/sui.js/transactions';
 import { PaginatedCoins } from '@mysten/sui.js/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
@@ -90,5 +93,34 @@ export class Coin extends Base {
         : '';
 
     return '0x' + fill + address;
+  }
+
+  async takeAmountFromCoins(
+    address: string,
+    coinType: string,
+    amount: number,
+    txb: TransactionBlock,
+  ) {
+    const coins = await this.selectTradeCoins(address, coinType, new Decimal(amount));
+
+    if (this.isSUI(coinType)) {
+      return [this.splitSUIFromGas([amount], txb)];
+    } else {
+      return this.splitMultiCoins(coins, [amount], txb);
+    }
+  }
+
+  splitSUIFromGas(amount: number[], txb: TransactionBlock) {
+    return txb.splitCoins(txb.gas, amount);
+  }
+
+  splitMultiCoins(coins: string[], amounts: number[], txb: TransactionBlock) {
+    const coinObjects = coins.map((coin) => txb.object(coin));
+    const mergedCoin = coinObjects[0]!;
+    if (coins.length > 1) {
+      txb.mergeCoins(mergedCoin, coinObjects.slice(1));
+    }
+    const splitedCoins = txb.splitCoins(mergedCoin, amounts);
+    return [splitedCoins, mergedCoin];
   }
 }

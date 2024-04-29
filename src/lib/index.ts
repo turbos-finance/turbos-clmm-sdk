@@ -5,3 +5,4 @@ export * from './pool';
 export * from './nft';
 export * from './coin';
 export * from './trade';
+export * from './vault';

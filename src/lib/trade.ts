@@ -13,7 +13,7 @@ import { BN } from 'bn.js';
 import * as suiKit from '../utils/sui-kit';
 import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
 
-const ONE_MINUTE = 60 * 1000;
+export const ONE_MINUTE = 60 * 1000;
 const MAX_TICK_STEP = 100;
 
 export declare module Trade {
@@ -68,6 +68,21 @@ export declare module Trade {
     sqrt_price: string;
     tick_current_index: { bits: number };
     tick_pre_index: { bits: number };
+  }
+
+  export interface SwapWithReturnOptions {
+    poolId: string;
+    coinType: string;
+    amountA: string;
+    amountB: string;
+    swapAmount: string;
+    nextTickIndex: number;
+    slippage: string;
+    amountSpecifiedIsInput: boolean;
+    a2b: boolean;
+    address: string;
+    deadline?: number;
+    txb?: TransactionBlock;
   }
 }
 
@@ -272,6 +287,90 @@ export class Trade extends Base {
     });
   }
 
+  async swapWithReturn(options: Trade.SwapWithReturnOptions) {
+    const {
+      poolId,
+      coinType,
+      amountA,
+      amountB,
+      swapAmount,
+      address,
+      slippage,
+      amountSpecifiedIsInput,
+      nextTickIndex,
+      a2b,
+    } = options;
+    const txb = options.txb || new TransactionBlock();
+    const _amountA = new Decimal(amountA);
+    const _amountB = new Decimal(amountB);
+
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+    const [coinA, coinB] = await Promise.all([
+      this.coin.getMetadata(typeArguments[0]),
+      this.coin.getMetadata(typeArguments[1]),
+    ]);
+    const contract = await this.contract.getConfig();
+
+    const nextTickPrice = this.math.tickIndexToPrice(
+      nextTickIndex,
+      coinA.decimals,
+      coinB.decimals,
+    );
+
+    const price = this.sqrtPriceWithSlippage(
+      nextTickPrice,
+      slippage,
+      a2b,
+      coinA.decimals,
+      coinB.decimals,
+    );
+
+    const [sendCoin, mergeCoin] = await this.coin.takeAmountFromCoins(
+      address,
+      coinType,
+      a2b ? _amountA.toNumber() : _amountB.toNumber(),
+      txb,
+    );
+
+    const [coinVecA, coinVecB] = txb.moveCall({
+      target: `${contract.PackageId}::swap_router::swap_${
+        a2b ? 'a_b' : 'b_a'
+      }_with_return_`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(poolId),
+        txb.makeMoveVec({
+          objects: [sendCoin!],
+        }),
+        txb.pure(swapAmount, 'u64'),
+        txb.pure(
+          this.amountOutWithSlippage(
+            new Decimal(a2b ? amountB : amountA),
+            slippage,
+            amountSpecifiedIsInput,
+          ),
+          'u64',
+        ),
+        txb.pure(price, 'u128'),
+        txb.pure(amountSpecifiedIsInput, 'bool'),
+        txb.pure(address, 'address'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    if (mergeCoin) {
+      txb.transferObjects([mergeCoin], address);
+    }
+
+    return {
+      txb,
+      coinVecA: a2b ? coinVecB : coinVecA,
+      coinVecB: a2b ? coinVecA : coinVecB,
+    };
+  }
+
   protected getFunctionNameAndTypeArguments(
     pools: Pool.Types[],
     coinTypeA: string,
@@ -311,7 +410,7 @@ export class Trade extends Base {
     };
   }
 
-  protected amountOutWithSlippage(
+  amountOutWithSlippage(
     amountOut: Decimal,
     slippage: string,
     amountSpecifiedIsInput: boolean,
@@ -325,7 +424,7 @@ export class Trade extends Base {
     return new Decimal(amountOut).mul(plus).toFixed(0);
   }
 
-  protected sqrtPriceWithSlippage(
+  sqrtPriceWithSlippage(
     price: Decimal,
     slippage: string,
     a2b: boolean,

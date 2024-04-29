@@ -19,6 +19,11 @@ export declare module Contract {
     PoolFactoryAdminCap: string;
     Versioned: string;
     PoolTableId: string;
+
+    VaultOriginPackageId: string;
+    VaultPackageId: string;
+    VaultGlobalConfig: string;
+    VaultRewarderManager: string;
   }
 }
 

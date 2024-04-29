@@ -1,6 +1,6 @@
 import { NetworkOrTransport, SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
 import { Network } from './constants';
-import { Pool, Contract, MathUtil, Account, NFT, Coin, Trade } from './lib';
+import { Pool, Contract, MathUtil, Account, NFT, Coin, Trade, Vault } from './lib';
 
 export class TurbosSdk {
   readonly pool: Pool;
@@ -11,6 +11,7 @@ export class TurbosSdk {
   readonly nft: NFT;
   readonly trade: Trade;
   readonly provider: SuiClient;
+  readonly vault: Vault;
 
   constructor(
     readonly network: Network,
@@ -32,5 +33,6 @@ export class TurbosSdk {
     this.nft = new NFT(this);
     this.coin = new Coin(this);
     this.trade = new Trade(this);
+    this.vault = new Vault(this);
   }
 }
