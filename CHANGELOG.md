@@ -1,5 +1,13 @@
 
 
+# [2.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.2.2...2.3.0) (2024-04-29)
+
+
+### Features
+
+* add vault contract ([ddb0864](https://github.com/turbos-finance/turbos-clmm-sdk/commit/ddb08640475bcb316f102063cf3f53d49bea448f))
+* only token withdraw vault ([20d7ae9](https://github.com/turbos-finance/turbos-clmm-sdk/commit/20d7ae9f2772a1401d15078b45adce16ec7c3b50))
+
 ## [2.2.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.2.1...2.2.2) (2024-04-02)
 
 ## [2.2.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.2.0...2.2.1) (2024-04-02)
