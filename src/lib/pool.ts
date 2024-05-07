@@ -500,22 +500,24 @@ export class Pool extends Base {
     const pool = await this.getPool(poolId);
 
     pool.reward_infos.forEach((rewardInfo, index) => {
-      txb.moveCall({
-        target: `${contract.PackageId}::position_manager::collect_reward`,
-        typeArguments: [...typeArguments, rewardInfo.fields.vault_coin_type],
-        arguments: [
-          txb.object(poolId),
-          txb.object(contract.Positions),
-          txb.object(nft),
-          txb.object(rewardInfo.fields.vault),
-          txb.pure(index, 'u64'),
-          txb.pure(rewardAmounts[index], 'u64'), //TODO
-          txb.pure(address),
-          txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
-          txb.object(SUI_CLOCK_OBJECT_ID),
-          txb.object(contract.Versioned),
-        ],
-      });
+      if (rewardAmounts[index] !== '0' && rewardAmounts[index] !== 0) {
+        txb.moveCall({
+          target: `${contract.PackageId}::position_manager::collect_reward`,
+          typeArguments: [...typeArguments, rewardInfo.fields.vault_coin_type],
+          arguments: [
+            txb.object(poolId),
+            txb.object(contract.Positions),
+            txb.object(nft),
+            txb.object(rewardInfo.fields.vault),
+            txb.pure(index, 'u64'),
+            txb.pure(rewardAmounts[index], 'u64'), //TODO
+            txb.pure(address),
+            txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+            txb.object(SUI_CLOCK_OBJECT_ID),
+            txb.object(contract.Versioned),
+          ],
+        });
+      }
     });
 
     return txb;
