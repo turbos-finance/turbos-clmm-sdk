@@ -517,6 +517,44 @@ export class Vault extends Base {
     return txb;
   }
 
+  async withdrawVault_v2(
+    options: Vault.WithdrawVaultArguments,
+  ): Promise<TransactionBlock> {
+    const { strategyId, vaultId, poolId, address, percentage } = options;
+    const txb = options.txb || new TransactionBlock();
+
+    if (options.onlyTokenA && options.onlyTokenB) {
+      return txb;
+    } else if (options.onlyTokenA || options.onlyTokenB) {
+      return this.onlyTokenWithdrawVault(options);
+    }
+
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+
+    txb.moveCall({
+      target: `${contract.VaultPackageId}::router::withdraw`,
+      arguments: [
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(contract.VaultUserTierConfig),
+        txb.object(contract.VaultRewarderManager),
+        txb.object(strategyId),
+        txb.object(vaultId),
+        txb.object(poolId),
+        txb.object(contract.Positions),
+        txb.pure(percentage, 'u64'),
+        txb.pure(percentage === 1000000, 'bool'),
+        txb.pure(address, 'address'),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+      typeArguments: typeArguments,
+    });
+
+    return txb;
+  }
+
   async collectClmmRewardDirectReturnVault(
     options: Vault.collectClmmRewardDirectReturnVaultArguments,
   ): Promise<TransactionBlock> {
