@@ -517,7 +517,7 @@ export class Vault extends Base {
     return txb;
   }
 
-  async withdrawVault_v2(
+  async withdrawVaultV2(
     options: Vault.WithdrawVaultArguments,
   ): Promise<TransactionBlock> {
     const { strategyId, vaultId, poolId, address, percentage } = options;
@@ -533,7 +533,7 @@ export class Vault extends Base {
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
     txb.moveCall({
-      target: `${contract.VaultPackageId}::router::withdraw`,
+      target: `${contract.VaultPackageId}::router::withdraw_v2`,
       arguments: [
         txb.object(contract.VaultGlobalConfig),
         txb.object(contract.VaultUserTierConfig),
