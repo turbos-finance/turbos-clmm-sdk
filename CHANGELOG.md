@@ -1,5 +1,12 @@
 
 
+## [2.4.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.4.0...2.4.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* contract rename target ([9f973e4](https://github.com/turbos-finance/turbos-clmm-sdk/commit/9f973e41da3585398b45348faf59014176de4de4))
+
 # [2.4.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.3.1...2.4.0) (2024-05-23)
 
 
