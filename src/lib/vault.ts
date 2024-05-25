@@ -517,6 +517,44 @@ export class Vault extends Base {
     return txb;
   }
 
+  async withdrawVaultV2(
+    options: Vault.WithdrawVaultArguments,
+  ): Promise<TransactionBlock> {
+    const { strategyId, vaultId, poolId, address, percentage } = options;
+    const txb = options.txb || new TransactionBlock();
+
+    if (options.onlyTokenA && options.onlyTokenB) {
+      return txb;
+    } else if (options.onlyTokenA || options.onlyTokenB) {
+      return this.onlyTokenWithdrawVault(options, 2);
+    }
+
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+
+    txb.moveCall({
+      target: `${contract.VaultPackageId}::router::withdraw_v2`,
+      arguments: [
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(contract.VaultUserTierConfig),
+        txb.object(contract.VaultRewarderManager),
+        txb.object(strategyId),
+        txb.object(vaultId),
+        txb.object(poolId),
+        txb.object(contract.Positions),
+        txb.pure(percentage, 'u64'),
+        txb.pure(percentage === 1000000, 'bool'),
+        txb.pure(address, 'address'),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+      typeArguments: typeArguments,
+    });
+
+    return txb;
+  }
+
   async collectClmmRewardDirectReturnVault(
     options: Vault.collectClmmRewardDirectReturnVaultArguments,
   ): Promise<TransactionBlock> {
@@ -659,18 +697,28 @@ export class Vault extends Base {
     };
   }
 
-  protected async onlyTokenWithdrawVault(options: Vault.WithdrawVaultArguments) {
+  protected async onlyTokenWithdrawVault(
+    options: Vault.WithdrawVaultArguments,
+    version: 1 | 2 = 1,
+  ) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
     let txb = options.txb || new TransactionBlock();
 
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
+    const argumentsConfig = [
+      txb.object(contract.VaultGlobalConfig),
+      txb.object(contract.VaultRewarderManager),
+    ];
+
+    version === 2 &&
+      argumentsConfig.splice(1, 0, txb.object(contract.VaultUserTierConfig));
+
     const [coinVecA, coinVecB] = txb.moveCall({
-      target: `${contract.VaultPackageId}::vault::withdraw`,
+      target: `${contract.VaultPackageId}::vault::withdraw${version === 2 ? '_v2' : ''}`,
       arguments: [
-        txb.object(contract.VaultGlobalConfig),
-        txb.object(contract.VaultRewarderManager),
+        ...argumentsConfig,
         txb.object(strategyId),
         txb.object(vaultId),
         txb.object(poolId),
