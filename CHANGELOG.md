@@ -1,5 +1,13 @@
 
 
+# [2.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.3.1...2.5.0) (2024-05-25)
+
+
+### Features
+
+* package.json version ([b76193d](https://github.com/turbos-finance/turbos-clmm-sdk/commit/b76193d33b03abf90fca8294834cb14b7b715d36))
+* withdraw v2 ([330e8c8](https://github.com/turbos-finance/turbos-clmm-sdk/commit/330e8c8614bbcd61d4ac7a58e5419d8bab97d91b))
+
 ## [2.3.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.3.0...2.3.1) (2024-05-07)
 
 # [2.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.2.2...2.3.0) (2024-04-29)
