@@ -182,9 +182,6 @@ export declare module Vault {
     strategyId: string;
     poolId: string;
     vaultId: string;
-    rewardVaultId: string;
-    rewardVaultIndex: number;
-    rewardVaultCoinType: string;
   }
 
   export interface CloseVaultArguments {
@@ -542,35 +539,31 @@ export class Vault extends Base {
   async collectClmmRewardDirectReturnVault(
     options: Vault.collectClmmRewardDirectReturnVaultArguments,
   ): Promise<TransactionBlock> {
-    const {
-      address,
-      strategyId,
-      poolId,
-      vaultId,
-      rewardVaultId,
-      rewardVaultIndex,
-      rewardVaultCoinType,
-    } = options;
+    const { address, strategyId, poolId, vaultId } = options;
     const txb = options.txb || new TransactionBlock();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
-    txb.moveCall({
-      target: `${contract.VaultPackageId}::router::collect_clmm_reward_direct_return`,
-      arguments: [
-        txb.object(contract.VaultGlobalConfig),
-        txb.object(strategyId),
-        txb.object(vaultId),
-        txb.object(poolId),
-        txb.object(contract.Positions),
-        txb.object(rewardVaultId), //clmm reward vault
-        txb.pure(rewardVaultIndex, 'u64'), // reward vault index
-        txb.pure(address, 'address'),
-        txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
-        txb.object(contract.Versioned),
-      ],
-      typeArguments: [...typeArguments, rewardVaultCoinType],
+    const pool = await this.pool.getPool(poolId);
+
+    pool.reward_infos.forEach((info, index) => {
+      txb.moveCall({
+        target: `${contract.VaultPackageId}::router::collect_clmm_reward_direct_return`,
+        arguments: [
+          txb.object(contract.VaultGlobalConfig),
+          txb.object(strategyId),
+          txb.object(vaultId),
+          txb.object(poolId),
+          txb.object(contract.Positions),
+          txb.object(info.fields.vault), //clmm reward vault
+          txb.pure(index, 'u64'), // reward vault index
+          txb.pure(address, 'address'),
+          txb.object(SUI_CLOCK_OBJECT_ID),
+          // versioned
+          txb.object(contract.Versioned),
+        ],
+        typeArguments: [...typeArguments, info.fields.vault_coin_type],
+      });
     });
 
     return txb;
@@ -599,11 +592,18 @@ export class Vault extends Base {
     return txb;
   }
 
-  async computeTokenWithdrawVaultSwapResult(
-    options: Omit<Vault.WithdrawVaultArguments, 'amount' | 'resultAmount' | 'sqrt_price'>,
-  ) {
+  async withdrawAllVault(options: Vault.withdrawAllVaultArguments){
+    let txb = await this.collectClmmRewardDirectReturnVault(options);
+    txb = await this.withdrawVaultV2({ txb, ...options });
+    txb = await this.closeVault({ txb, ...options });
+    return txb;
+  }
+
+  async computeTokenWithdrawVaultSwapResult(options: Vault.WithdrawVaultArguments) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
     let txb = new TransactionBlock(options.txb);
+    
+    txb = await this.collectClmmRewardDirectReturnVault(options);
 
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
@@ -665,7 +665,7 @@ export class Vault extends Base {
         txb.pure(
           this.trade.amountOutWithSlippage(
             new Decimal(a2b ? amountB : amountA),
-            options.slippage?.toString() || '5',
+            options.slippage?.toString() || '99',
             true,
           ),
           'u64',
@@ -724,7 +724,6 @@ export class Vault extends Base {
       coinA.decimals,
       coinB.decimals,
     );
-
     return {
       amountA,
       amountB,
@@ -732,7 +731,7 @@ export class Vault extends Base {
       resultAmountB: jsonResult.amount_b,
       sqrt_price: _sqrt_price,
       current_index: this.math.bitsToNumber(jsonResult.tick_current_index.bits),
-      prev_index: this.math.bitsToNumber(jsonResult.tick_current_index.bits),
+      prev_index: this.math.bitsToNumber(jsonResult.tick_pre_index.bits),
       a2b: jsonResult.a_to_b,
     };
   }
@@ -852,7 +851,6 @@ export class Vault extends Base {
     });
 
     const a2b = options.onlyTokenB ? true : false;
-
     const [returnCoinA, returnCoinB] = txb.moveCall({
       target: `${contract.PackageId}::swap_router::swap_${
         a2b ? 'a_b' : 'b_a'
@@ -863,10 +861,10 @@ export class Vault extends Base {
         txb.makeMoveVec({
           objects: [a2b ? coinVecA! : coinVecB!],
         }),
-        txb.pure(res.amountB, 'u64'),
+        txb.pure(a2b ? res.amountA : res.amountB, 'u64'),
         txb.pure(
           this.trade.amountOutWithSlippage(
-            new Decimal(res.resultAmountA),
+            new Decimal(a2b ? res.resultAmountB : res.resultAmountA),
             options.slippage?.toString() || '1',
             true,
           ),
