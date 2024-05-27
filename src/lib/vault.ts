@@ -166,6 +166,7 @@ export declare module Vault {
   export interface WithdrawVaultArguments {
     txb?: TransactionBlock;
     deadline?: number;
+    slippage?: string | number;
     strategyId: string;
     vaultId: string;
     poolId: string;
@@ -192,6 +193,11 @@ export declare module Vault {
     vaultId: string;
   }
 
+  export interface withdrawAllVaultArguments
+    extends WithdrawVaultArguments,
+      collectClmmRewardDirectReturnVaultArguments,
+      CloseVaultArguments {}
+
   export interface OnlyTokenSwapWithReturnOptions
     extends Pick<
       Vault.CreateAndDepositVaultArguments,
@@ -209,12 +215,25 @@ export declare module Vault {
     lowerIndex: number;
     upperIndex: number;
     a2b: boolean;
+    slippage?: string | number;
   }
 
   export interface VaultWithdrawEvents {
     amount_a: string;
     amount_b: string;
     percentage: string;
+  }
+
+  export interface EventParseJson {
+    a_to_b: boolean;
+    amount_a: string;
+    amount_b: string;
+    tick_current_index: {
+      bits: number;
+    };
+    tick_pre_index: {
+      bits: number;
+    };
   }
 }
 
@@ -482,41 +501,6 @@ export class Vault extends Base {
     return txb;
   }
 
-  async withdrawVault(options: Vault.WithdrawVaultArguments): Promise<TransactionBlock> {
-    const { strategyId, vaultId, poolId, address, percentage } = options;
-    const txb = options.txb || new TransactionBlock();
-
-    if (options.onlyTokenA && options.onlyTokenB) {
-      return txb;
-    } else if (options.onlyTokenA || options.onlyTokenB) {
-      return this.onlyTokenWithdrawVault(options);
-    }
-
-    const contract = await this.contract.getConfig();
-    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
-
-    txb.moveCall({
-      target: `${contract.VaultPackageId}::router::withdraw`,
-      arguments: [
-        txb.object(contract.VaultGlobalConfig),
-        txb.object(contract.VaultRewarderManager),
-        txb.object(strategyId),
-        txb.object(vaultId),
-        txb.object(poolId),
-        txb.object(contract.Positions),
-        txb.pure(percentage, 'u64'),
-        txb.pure(percentage === 1000000, 'bool'),
-        txb.pure(address, 'address'),
-        txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
-        txb.object(contract.Versioned),
-      ],
-      typeArguments: typeArguments,
-    });
-
-    return txb;
-  }
-
   async withdrawVaultV2(
     options: Vault.WithdrawVaultArguments,
   ): Promise<TransactionBlock> {
@@ -526,7 +510,7 @@ export class Vault extends Base {
     if (options.onlyTokenA && options.onlyTokenB) {
       return txb;
     } else if (options.onlyTokenA || options.onlyTokenB) {
-      return this.onlyTokenWithdrawVault(options, 2);
+      return this.onlyTokenWithdrawVault(options);
     }
 
     const contract = await this.contract.getConfig();
@@ -615,6 +599,144 @@ export class Vault extends Base {
     return txb;
   }
 
+  async computeTokenWithdrawVaultSwapResult(
+    options: Omit<Vault.WithdrawVaultArguments, 'amount' | 'resultAmount' | 'sqrt_price'>,
+  ) {
+    const { poolId, strategyId, vaultId, percentage, address } = options;
+    let txb = new TransactionBlock(options.txb);
+
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+
+    const [coinVecA, coinVecB] = txb.moveCall({
+      target: `${contract.VaultPackageId}::vault::withdraw_v2`,
+      arguments: [
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(contract.VaultUserTierConfig),
+        txb.object(contract.VaultRewarderManager),
+        txb.object(strategyId),
+        txb.object(vaultId),
+        txb.object(poolId),
+        txb.object(contract.Positions),
+        txb.pure(percentage, 'u64'),
+        txb.pure(percentage === 1000000, 'bool'),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+      typeArguments: typeArguments,
+    });
+
+    const result = await this.provider.devInspectTransactionBlock({
+      transactionBlock: txb,
+      sender: address,
+    });
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    let amountA: string | undefined;
+    let amountB: string | undefined;
+    result.events.map((event) => {
+      const eventResult = event.parsedJson as Vault.VaultWithdrawEvents;
+      if (eventResult.percentage) {
+        amountA = eventResult.amount_a;
+        amountB = eventResult.amount_b;
+      }
+    });
+
+    if (!amountA || !amountB) {
+      throw new Error('event does not exist');
+    }
+    const a2b = options.onlyTokenB ? true : false;
+
+    const [returnCoinA, returnCoinB] = txb.moveCall({
+      target: `${contract.PackageId}::swap_router::swap_${
+        a2b ? 'a_b' : 'b_a'
+      }_with_return_`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(poolId),
+        txb.makeMoveVec({
+          objects: [a2b ? coinVecA! : coinVecB!],
+        }),
+        txb.pure(a2b ? amountA : amountB, 'u64'),
+        txb.pure(
+          this.trade.amountOutWithSlippage(
+            new Decimal(a2b ? amountB : amountA),
+            options.slippage?.toString() || '5',
+            true,
+          ),
+          'u64',
+        ),
+        txb.pure(
+          this.math
+            .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
+            .toString(),
+          'u128',
+        ),
+        txb.pure(true, 'bool'),
+        txb.pure(address, 'address'),
+        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    txb.transferObjects(
+      [options.onlyTokenB ? coinVecB! : coinVecA!, returnCoinB!, returnCoinA!],
+      address,
+    );
+
+    const finalSwapResult = await this.provider.devInspectTransactionBlock({
+      transactionBlock: txb,
+      sender: address,
+    });
+
+    let jsonResult: Vault.EventParseJson | undefined;
+    finalSwapResult.events.map((event) => {
+      const eventResult = event.parsedJson as Vault.EventParseJson;
+      if (eventResult.a_to_b !== undefined) {
+        jsonResult = eventResult;
+      }
+    });
+
+    if (!jsonResult) {
+      throw new Error('event does not exist');
+    }
+
+    const [coinA, coinB] = await Promise.all([
+      this.coin.getMetadata(typeArguments[0]),
+      this.coin.getMetadata(typeArguments[1]),
+    ]);
+
+    const _nextTickPrice = this.math.tickIndexToPrice(
+      this.math.bitsToNumber(jsonResult.tick_current_index.bits),
+      coinA.decimals,
+      coinB.decimals,
+    );
+
+    const _sqrt_price = this.trade.sqrtPriceWithSlippage(
+      _nextTickPrice,
+      options.slippage?.toString() || '1',
+      options.onlyTokenB ? true : false,
+      coinA.decimals,
+      coinB.decimals,
+    );
+
+    return {
+      amountA,
+      amountB,
+      resultAmountA: jsonResult.amount_a,
+      resultAmountB: jsonResult.amount_b,
+      sqrt_price: _sqrt_price,
+      current_index: this.math.bitsToNumber(jsonResult.tick_current_index.bits),
+      prev_index: this.math.bitsToNumber(jsonResult.tick_current_index.bits),
+      a2b: jsonResult.a_to_b,
+    };
+  }
+
   protected async onlyTokenSwapWithReturn(options: Vault.OnlyTokenSwapWithReturnOptions) {
     const {
       coinTypeA,
@@ -679,7 +801,7 @@ export class Vault extends Base {
       swapAmount: swapAmount,
       amountB: a2b ? swapResult[0]!.amount_b : options.amountB,
       nextTickIndex: this.math.bitsToNumber(swapResult[0]!.tick_current_index.bits),
-      slippage: '1',
+      slippage: options.slippage?.toString() || '5',
       amountSpecifiedIsInput: true,
       a2b,
       address,
@@ -697,28 +819,25 @@ export class Vault extends Base {
     };
   }
 
-  protected async onlyTokenWithdrawVault(
-    options: Vault.WithdrawVaultArguments,
-    version: 1 | 2 = 1,
-  ) {
+  protected async onlyTokenWithdrawVault(options: Vault.WithdrawVaultArguments) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
-    let txb = options.txb || new TransactionBlock();
 
+    let devTxb = new TransactionBlock(options.txb);
+    const res = await this.computeTokenWithdrawVaultSwapResult({
+      ...options,
+      txb: devTxb,
+    });
+
+    let txb = options.txb || new TransactionBlock();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
-    const argumentsConfig = [
-      txb.object(contract.VaultGlobalConfig),
-      txb.object(contract.VaultRewarderManager),
-    ];
-
-    version === 2 &&
-      argumentsConfig.splice(1, 0, txb.object(contract.VaultUserTierConfig));
-
     const [coinVecA, coinVecB] = txb.moveCall({
-      target: `${contract.VaultPackageId}::vault::withdraw${version === 2 ? '_v2' : ''}`,
+      target: `${contract.VaultPackageId}::vault::withdraw_v2`,
       arguments: [
-        ...argumentsConfig,
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(contract.VaultUserTierConfig),
+        txb.object(contract.VaultRewarderManager),
         txb.object(strategyId),
         txb.object(vaultId),
         txb.object(poolId),
@@ -732,82 +851,28 @@ export class Vault extends Base {
       typeArguments: typeArguments,
     });
 
-    const result = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
-    });
+    const a2b = options.onlyTokenB ? true : false;
 
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    let amountA;
-    let amountB;
-    result.events.map((event) => {
-      const eventResult = event.parsedJson as Vault.VaultWithdrawEvents;
-      if (eventResult.percentage) {
-        amountA = eventResult.amount_a;
-        amountB = eventResult.amount_b;
-      }
-    });
-
-    if (!amountA || !amountB) {
-      throw new Error('event does not exist');
-    }
-
-    const swapResult = await this.trade.computeSwapResultV2({
-      pools: [
-        {
-          pool: poolId,
-          a2b: options.onlyTokenB ? true : false,
-          amountSpecified: options.onlyTokenB ? amountA : amountB,
-        },
-      ],
-      amountSpecifiedIsInput: true,
-      address,
-    });
-
-    const [coinA, coinB] = await Promise.all([
-      this.coin.getMetadata(typeArguments[0]),
-      this.coin.getMetadata(typeArguments[1]),
-    ]);
-
-    const nextTickPrice = this.math.tickIndexToPrice(
-      this.math.bitsToNumber(swapResult[0]!.tick_current_index.bits),
-      coinA.decimals,
-      coinB.decimals,
-    );
-
-    const sqrt_price = this.trade.sqrtPriceWithSlippage(
-      nextTickPrice,
-      '1',
-      options.onlyTokenB ? true : false,
-      coinA.decimals,
-      coinB.decimals,
-    );
-
-    txb.moveCall({
-      target: `${contract.PackageId}::swap_router::${
-        options.onlyTokenB ? 'swap_a_b' : 'swap_b_a'
-      }`,
+    const [returnCoinA, returnCoinB] = txb.moveCall({
+      target: `${contract.PackageId}::swap_router::swap_${
+        a2b ? 'a_b' : 'b_a'
+      }_with_return_`,
       typeArguments: typeArguments,
       arguments: [
         txb.object(poolId),
         txb.makeMoveVec({
-          objects: [options.onlyTokenB ? coinVecA! : coinVecB!],
+          objects: [a2b ? coinVecA! : coinVecB!],
         }),
-        txb.pure(options.onlyTokenB ? amountA : amountB, 'u64'),
+        txb.pure(res.amountB, 'u64'),
         txb.pure(
           this.trade.amountOutWithSlippage(
-            new Decimal(
-              options.onlyTokenB ? swapResult[0]!.amount_b : swapResult[0]!.amount_a,
-            ),
-            '1',
+            new Decimal(res.resultAmountA),
+            options.slippage?.toString() || '1',
             true,
           ),
           'u64',
         ),
-        txb.pure(sqrt_price, 'u128'),
+        txb.pure(res.sqrt_price, 'u128'),
         txb.pure(true, 'bool'),
         txb.pure(address, 'address'),
         txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
@@ -816,7 +881,10 @@ export class Vault extends Base {
       ],
     });
 
-    txb.transferObjects([options.onlyTokenB ? coinVecB! : coinVecA!], address);
+    txb.transferObjects(
+      [options.onlyTokenB ? coinVecB! : coinVecA!, returnCoinB!, returnCoinA!],
+      address,
+    );
 
     return txb;
   }
