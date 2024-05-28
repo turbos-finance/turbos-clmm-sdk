@@ -592,7 +592,7 @@ export class Vault extends Base {
     return txb;
   }
 
-  async withdrawAllVault(options: Vault.withdrawAllVaultArguments){
+  async withdrawAllVault(options: Vault.withdrawAllVaultArguments) {
     let txb = await this.collectClmmRewardDirectReturnVault(options);
     txb = await this.withdrawVaultV2({ txb, ...options });
     txb = await this.closeVault({ txb, ...options });
@@ -602,7 +602,7 @@ export class Vault extends Base {
   async computeTokenWithdrawVaultSwapResult(options: Vault.WithdrawVaultArguments) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
     let txb = new TransactionBlock(options.txb);
-    
+
     txb = await this.collectClmmRewardDirectReturnVault(options);
 
     const contract = await this.contract.getConfig();
