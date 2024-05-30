@@ -170,7 +170,7 @@ export class Trade extends Base {
     });
     const txb = new TransactionBlock();
     poolResult.map(async (pool) => {
-      const fields = getObjectFields(pool) as Pool.PoolFields;
+      const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
       const _pool = pools.find((item) => item.pool === fields.id.id);
 
       const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
@@ -239,7 +239,7 @@ export class Trade extends Base {
       const poolObject = poolResults.find(
         (poolResult) => getObjectId(poolResult) === pool.pool,
       )!;
-      const fields = getObjectFields(poolObject) as Pool.PoolFields;
+      const fields = getObjectFields(poolObject) as unknown as Pool.PoolFields;
 
       const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
       let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);

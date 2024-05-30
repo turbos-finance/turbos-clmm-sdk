@@ -896,7 +896,7 @@ export class Vault extends Base {
           options: { showContent: true },
         });
         validateObjectResponse(result, 'strategyId');
-        return getObjectFields(result) as Vault.VaultStrategyField;
+        return getObjectFields(result) as unknown as Vault.VaultStrategyField;
       },
       1500,
     );
@@ -917,7 +917,7 @@ export class Vault extends Base {
           },
         });
         validateObjectResponse(result, 'vaultId-value');
-        return getObjectFields(result) as Vault.VaultsIdMyStrategyVaultField;
+        return getObjectFields(result) as unknown as Vault.VaultsIdMyStrategyVaultField;
       },
       1500,
     );

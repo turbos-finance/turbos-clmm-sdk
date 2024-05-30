@@ -94,7 +94,7 @@ export class NFT extends Base {
 
   async getFields(nftId: string): Promise<NFT.NftField> {
     const result = await this.getObject(nftId);
-    return getObjectFields(result) as NFT.NftField;
+    return getObjectFields(result) as unknown as NFT.NftField;
   }
 
   async getPositionFields(nftId: string): Promise<NFT.PositionField> {
@@ -103,7 +103,7 @@ export class NFT extends Base {
       parentId: contract.Positions,
       name: { type: 'address', value: nftId },
     });
-    return getObjectFields(result) as NFT.PositionField;
+    return getObjectFields(result) as unknown as NFT.PositionField;
   }
 
   async getPositionFieldsByPositionId(positionId: string): Promise<NFT.PositionField> {
@@ -112,7 +112,7 @@ export class NFT extends Base {
       options: { showContent: true },
     });
     validateObjectResponse(result, 'position');
-    return getObjectFields(result) as NFT.PositionField;
+    return getObjectFields(result) as unknown as NFT.PositionField;
   }
 
   async getPositionTick(

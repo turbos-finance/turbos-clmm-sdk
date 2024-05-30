@@ -1,4 +1,5 @@
 import {
+  MoveStruct,
   ObjectOwner,
   OwnedObjectRef,
   SuiMoveObject,
@@ -7,7 +8,6 @@ import {
   SuiObjectResponse,
   SuiParsedData,
 } from '@mysten/sui.js/client';
-import type { ObjectContentFields, ObjectType } from '@mysten/sui.js/dist/cjs/types';
 
 type SuiObjectResponseError = any;
 
@@ -42,7 +42,7 @@ export function getObjectId(
 
 export function getObjectFields(
   resp: SuiObjectResponse | SuiMoveObject | SuiObjectData,
-): ObjectContentFields | undefined {
+): MoveStruct | undefined {
   if ('fields' in resp) {
     return resp.fields;
   }
@@ -127,7 +127,7 @@ export function isSuiObjectResponse(
  */
 export function getObjectType(
   resp: SuiObjectResponse | SuiObjectData,
-): ObjectType | null | undefined {
+): string | null | undefined {
   const data = isSuiObjectResponse(resp) ? resp.data : resp;
 
   if (!data?.type && 'data' in resp) {

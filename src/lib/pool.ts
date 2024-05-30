@@ -182,7 +182,7 @@ export class Pool extends Base {
     });
     if (!withLocked) {
       pools = pools.filter((pool) => {
-        const fields = getObjectFields(pool) as Pool.PoolFields;
+        const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
         return fields.unlocked;
       });
     }
@@ -622,7 +622,7 @@ export class Pool extends Base {
   }
 
   protected parsePool(pool: SuiObjectResponse): Pool.Pool {
-    const fields = getObjectFields(pool) as Pool.PoolFields;
+    const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
     const types = this.parsePoolType(type, 3);
