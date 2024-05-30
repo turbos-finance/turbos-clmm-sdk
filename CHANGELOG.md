@@ -1,5 +1,12 @@
 
 
+# [2.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.5.0...2.6.0) (2024-05-30)
+
+
+### Features
+
+* add withdraw all vault and optimize compute withdraw swap ([af35b0f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/af35b0f0dbea5fa0a1fdb7b0e6e21e1cc489b4f3))
+
 # [2.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.3.1...2.5.0) (2024-05-25)
 
 
