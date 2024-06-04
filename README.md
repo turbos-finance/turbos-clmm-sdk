@@ -1,7 +1,7 @@
 # Installation
 
 ```bash
-pnpm add turbos-clmm-sdk @mysten/sui.js
+pnpm add turbos-clmm-sdk @mysten/sui
 ```
 
 # Modules
@@ -16,7 +16,7 @@ pnpm add turbos-clmm-sdk @mysten/sui.js
 # Initial SDK
 
 ```typescript
-import { JsonRpcProvider, testnetConnection } from '@mysten/sui.js';
+import { JsonRpcProvider, testnetConnection } from '@mysten/sui';
 import { Network, TurbosSdk } from 'turbos-clmm-sdk';
 
 // Choose one way
@@ -77,6 +77,6 @@ const txb = await sdk.trade.swap({
   amountB: number | string;
   amountSpecifiedIsInput: boolean;
   slippage: string;
-  txb?: TransactionBlock;
+  txb?: Transaction;
 });
 ```

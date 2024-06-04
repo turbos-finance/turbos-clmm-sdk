@@ -1,5 +1,5 @@
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
-import type { Keypair } from '@mysten/sui.js/cryptography';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import type { Keypair } from '@mysten/sui/cryptography';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
 

@@ -1,8 +1,5 @@
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
-import {
-  TransactionBlock,
-  type TransactionObjectArgument,
-} from '@mysten/sui.js/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
+import { Transaction, type TransactionObjectArgument } from '@mysten/sui/transactions';
 import { Base } from './base';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { getObjectFields } from './legacy';
@@ -118,7 +115,7 @@ export declare module Vault {
   }
 
   export interface CreateAndDepositVaultArguments {
-    txb?: TransactionBlock;
+    txb?: Transaction;
     deadline?: number;
     address: string;
     strategyId: string;
@@ -164,7 +161,7 @@ export declare module Vault {
   }
 
   export interface WithdrawVaultArguments {
-    txb?: TransactionBlock;
+    txb?: Transaction;
     deadline?: number;
     slippage?: string | number;
     strategyId: string;
@@ -177,7 +174,7 @@ export declare module Vault {
   }
 
   export interface collectClmmRewardDirectReturnVaultArguments {
-    txb?: TransactionBlock;
+    txb?: Transaction;
     address: string;
     strategyId: string;
     poolId: string;
@@ -185,7 +182,7 @@ export declare module Vault {
   }
 
   export interface CloseVaultArguments {
-    txb?: TransactionBlock;
+    txb?: Transaction;
     strategyId: string;
     vaultId: string;
   }
@@ -237,7 +234,7 @@ export declare module Vault {
 export class Vault extends Base {
   async createAndDepositVault(
     options: Vault.CreateAndDepositVaultArguments,
-  ): Promise<TransactionBlock> {
+  ): Promise<Transaction> {
     const {
       address,
       strategyId,
@@ -251,7 +248,7 @@ export class Vault extends Base {
       baseTickStep,
       limitTickStep,
     } = options;
-    let txb = options.txb || new TransactionBlock();
+    let txb = options.txb || new Transaction();
 
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
@@ -344,17 +341,17 @@ export class Vault extends Base {
         txb.object(contract.Positions),
         _sendCoinA!,
         _sendCoinB!,
-        txb.pure(Math.abs(_baseLowerIndex).toFixed(0), 'u32'),
-        txb.pure(_baseLowerIndex < 0, 'bool'),
-        txb.pure(Math.abs(_baseUpperIndex).toFixed(0), 'u32'),
-        txb.pure(_baseUpperIndex < 0, 'bool'),
-        txb.pure(Math.abs(_limitLowerIndex).toFixed(0), 'u32'),
-        txb.pure(_limitLowerIndex < 0, 'bool'),
-        txb.pure(Math.abs(_limitUpperIndex).toFixed(0), 'u32'),
-        txb.pure(_limitUpperIndex < 0, 'bool'),
-        txb.pure(baseTickStep, 'u32'),
-        txb.pure(limitTickStep, 'u32'),
-        txb.pure(address, 'address'),
+        txb.pure.u32(Number(Math.abs(_baseLowerIndex).toFixed(0))),
+        txb.pure.bool(_baseLowerIndex < 0),
+        txb.pure.u32(Number(Math.abs(_baseUpperIndex).toFixed(0))),
+        txb.pure.bool(_baseUpperIndex < 0),
+        txb.pure.u32(Number(Math.abs(_limitLowerIndex).toFixed(0))),
+        txb.pure.bool(_limitLowerIndex < 0),
+        txb.pure.u32(Number(Math.abs(_limitUpperIndex).toFixed(0))),
+        txb.pure.bool(_limitUpperIndex < 0),
+        txb.pure.u32(baseTickStep),
+        txb.pure.u32(limitTickStep),
+        txb.pure.address(address),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],
@@ -364,7 +361,7 @@ export class Vault extends Base {
     return txb;
   }
 
-  async createVault(options: Vault.CreateVaultArguments): Promise<TransactionBlock> {
+  async createVault(options: Vault.CreateVaultArguments): Promise<Transaction> {
     const {
       strategyId,
       address,
@@ -373,7 +370,7 @@ export class Vault extends Base {
       limitLowerIndex,
       limitUpperIndex,
     } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
 
     const fields = await this.getStrategy(strategyId);
@@ -383,15 +380,15 @@ export class Vault extends Base {
       arguments: [
         txb.object(contract.VaultGlobalConfig),
         txb.object(strategyId),
-        txb.pure(Math.abs(baseLowerIndex).toFixed(0), 'u32'),
-        txb.pure(baseLowerIndex < 0, 'bool'),
-        txb.pure(Math.abs(baseUpperIndex).toFixed(0), 'u32'),
-        txb.pure(baseUpperIndex < 0, 'bool'),
-        txb.pure(Math.abs(limitLowerIndex).toFixed(0), 'u32'),
-        txb.pure(limitLowerIndex < 0, 'bool'),
-        txb.pure(Math.abs(limitUpperIndex).toFixed(0), 'u32'),
-        txb.pure(limitUpperIndex < 0, 'bool'),
-        txb.pure(address, 'address'),
+        txb.pure.u32(Number(Math.abs(baseLowerIndex).toFixed(0))),
+        txb.pure.bool(baseLowerIndex < 0),
+        txb.pure.u32(Number(Math.abs(baseUpperIndex).toFixed(0))),
+        txb.pure.bool(baseUpperIndex < 0),
+        txb.pure.u32(Number(Math.abs(limitLowerIndex).toFixed(0))),
+        txb.pure.bool(limitLowerIndex < 0),
+        txb.pure.u32(Number(Math.abs(limitUpperIndex).toFixed(0))),
+        txb.pure.bool(limitUpperIndex < 0),
+        txb.pure.address(address),
       ],
       typeArguments: [
         fields.coin_a_type_name.fields.name,
@@ -402,10 +399,10 @@ export class Vault extends Base {
     return txb;
   }
 
-  async depositVault(options: Vault.DepositVaultArguments): Promise<TransactionBlock> {
+  async depositVault(options: Vault.DepositVaultArguments): Promise<Transaction> {
     const { strategyId, vaultId, poolId, coinTypeA, coinTypeB, address } = options;
 
-    let txb = options.txb || new TransactionBlock();
+    let txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
@@ -498,11 +495,9 @@ export class Vault extends Base {
     return txb;
   }
 
-  async withdrawVaultV2(
-    options: Vault.WithdrawVaultArguments,
-  ): Promise<TransactionBlock> {
+  async withdrawVaultV2(options: Vault.WithdrawVaultArguments): Promise<Transaction> {
     const { strategyId, vaultId, poolId, address, percentage } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
 
     if (options.onlyTokenA && options.onlyTokenB) {
       return txb;
@@ -523,9 +518,9 @@ export class Vault extends Base {
         txb.object(vaultId),
         txb.object(poolId),
         txb.object(contract.Positions),
-        txb.pure(percentage, 'u64'),
-        txb.pure(percentage === 1000000, 'bool'),
-        txb.pure(address, 'address'),
+        txb.pure.u64(percentage),
+        txb.pure.bool(percentage === 1000000),
+        txb.pure.address(address),
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
         txb.object(contract.Versioned),
@@ -538,9 +533,9 @@ export class Vault extends Base {
 
   async collectClmmRewardDirectReturnVault(
     options: Vault.collectClmmRewardDirectReturnVaultArguments,
-  ): Promise<TransactionBlock> {
+  ): Promise<Transaction> {
     const { address, strategyId, poolId, vaultId } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
@@ -556,8 +551,8 @@ export class Vault extends Base {
           txb.object(poolId),
           txb.object(contract.Positions),
           txb.object(info.fields.vault), //clmm reward vault
-          txb.pure(index, 'u64'), // reward vault index
-          txb.pure(address, 'address'),
+          txb.pure.u64(index), // reward vault index
+          txb.pure.address(address),
           txb.object(SUI_CLOCK_OBJECT_ID),
           // versioned
           txb.object(contract.Versioned),
@@ -569,9 +564,9 @@ export class Vault extends Base {
     return txb;
   }
 
-  async closeVault(options: Vault.CloseVaultArguments): Promise<TransactionBlock> {
+  async closeVault(options: Vault.CloseVaultArguments): Promise<Transaction> {
     const { strategyId, vaultId } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
 
     const contract = await this.contract.getConfig();
     const fields = await this.getStrategy(strategyId);
@@ -601,7 +596,7 @@ export class Vault extends Base {
 
   async computeTokenWithdrawVaultSwapResult(options: Vault.WithdrawVaultArguments) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
-    let txb = new TransactionBlock(options.txb);
+    let txb = options.txb ? Transaction.from(options.txb) : new Transaction();
 
     txb = await this.collectClmmRewardDirectReturnVault(options);
 
@@ -618,8 +613,8 @@ export class Vault extends Base {
         txb.object(vaultId),
         txb.object(poolId),
         txb.object(contract.Positions),
-        txb.pure(percentage, 'u64'),
-        txb.pure(percentage === 1000000, 'bool'),
+        txb.pure.u64(percentage),
+        txb.pure.bool(percentage === 1000000),
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
         txb.object(contract.Versioned),
@@ -659,26 +654,24 @@ export class Vault extends Base {
       arguments: [
         txb.object(poolId),
         txb.makeMoveVec({
-          objects: [a2b ? coinVecA! : coinVecB!],
+          elements: [a2b ? coinVecA! : coinVecB!],
         }),
-        txb.pure(a2b ? amountA : amountB, 'u64'),
-        txb.pure(
+        txb.pure.u64(a2b ? amountA : amountB),
+        txb.pure.u64(
           this.trade.amountOutWithSlippage(
             new Decimal(a2b ? amountB : amountA),
             options.slippage?.toString() || '99',
             true,
           ),
-          'u64',
         ),
-        txb.pure(
+        txb.pure.u128(
           this.math
             .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
             .toString(),
-          'u128',
         ),
-        txb.pure(true, 'bool'),
-        txb.pure(address, 'address'),
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.bool(true),
+        txb.pure.address(address),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],
@@ -748,7 +741,7 @@ export class Vault extends Base {
       address,
       a2b,
     } = options;
-    let txb = options.txb || new TransactionBlock();
+    let txb = options.txb || new Transaction();
 
     const [coinA, coinB] = await Promise.all([
       this.coin.getMetadata(coinTypeA),
@@ -821,13 +814,13 @@ export class Vault extends Base {
   protected async onlyTokenWithdrawVault(options: Vault.WithdrawVaultArguments) {
     const { poolId, strategyId, vaultId, percentage, address } = options;
 
-    let devTxb = new TransactionBlock(options.txb);
+    let devTxb = options.txb ? Transaction.from(options.txb) : new Transaction();
     const res = await this.computeTokenWithdrawVaultSwapResult({
       ...options,
       txb: devTxb,
     });
 
-    let txb = options.txb || new TransactionBlock();
+    let txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(poolId);
 
@@ -841,8 +834,8 @@ export class Vault extends Base {
         txb.object(vaultId),
         txb.object(poolId),
         txb.object(contract.Positions),
-        txb.pure(percentage, 'u64'),
-        txb.pure(percentage === 1000000, 'bool'),
+        txb.pure.u64(percentage),
+        txb.pure.bool(percentage === 1000000),
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
         txb.object(contract.Versioned),
@@ -859,21 +852,20 @@ export class Vault extends Base {
       arguments: [
         txb.object(poolId),
         txb.makeMoveVec({
-          objects: [a2b ? coinVecA! : coinVecB!],
+          elements: [a2b ? coinVecA! : coinVecB!],
         }),
-        txb.pure(a2b ? res.amountA : res.amountB, 'u64'),
-        txb.pure(
+        txb.pure.u64(a2b ? res.amountA : res.amountB),
+        txb.pure.u64(
           this.trade.amountOutWithSlippage(
             new Decimal(a2b ? res.resultAmountB : res.resultAmountA),
             options.slippage?.toString() || '1',
             true,
           ),
-          'u64',
         ),
-        txb.pure(res.sqrt_price, 'u128'),
-        txb.pure(true, 'bool'),
-        txb.pure(address, 'address'),
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.u128(res.sqrt_price),
+        txb.pure.bool(true),
+        txb.pure.address(address),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],
@@ -896,7 +888,7 @@ export class Vault extends Base {
           options: { showContent: true },
         });
         validateObjectResponse(result, 'strategyId');
-        return getObjectFields(result) as Vault.VaultStrategyField;
+        return getObjectFields(result) as unknown as Vault.VaultStrategyField;
       },
       1500,
     );
@@ -917,7 +909,7 @@ export class Vault extends Base {
           },
         });
         validateObjectResponse(result, 'vaultId-value');
-        return getObjectFields(result) as Vault.VaultsIdMyStrategyVaultField;
+        return getObjectFields(result) as unknown as Vault.VaultsIdMyStrategyVaultField;
       },
       1500,
     );

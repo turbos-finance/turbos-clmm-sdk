@@ -1,4 +1,4 @@
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Account } from '../src/lib/account';
 
 const account = new Account();

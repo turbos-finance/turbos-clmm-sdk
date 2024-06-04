@@ -1,4 +1,4 @@
-import { NetworkOrTransport, SuiClient, getFullnodeUrl } from '@mysten/sui.js/client';
+import { SuiClient, SuiClientOptions, getFullnodeUrl } from '@mysten/sui/client';
 import { Network } from './constants';
 import { Pool, Contract, MathUtil, Account, NFT, Coin, Trade, Vault } from './lib';
 
@@ -13,14 +13,11 @@ export class TurbosSdk {
   readonly provider: SuiClient;
   readonly vault: Vault;
 
-  constructor(
-    readonly network: Network,
-    clientOrTransport?: NetworkOrTransport | SuiClient,
-  ) {
-    this.provider = clientOrTransport
-      ? clientOrTransport instanceof SuiClient
-        ? clientOrTransport
-        : new SuiClient(clientOrTransport)
+  constructor(readonly network: Network, clientOrOptions?: SuiClientOptions | SuiClient) {
+    this.provider = clientOrOptions
+      ? clientOrOptions instanceof SuiClient
+        ? clientOrOptions
+        : new SuiClient(clientOrOptions)
       : new SuiClient({
           url:
             network === Network.mainnet

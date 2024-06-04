@@ -1,5 +1,5 @@
-import { TransactionBlock } from '@mysten/sui.js/transactions';
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
+import { Transaction } from '@mysten/sui/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
@@ -37,7 +37,7 @@ export declare module Trade {
     amountSpecifiedIsInput: boolean;
     slippage: string;
     deadline?: number;
-    txb?: TransactionBlock;
+    txb?: Transaction;
   }
 
   export interface ComputeSwapResultOptions {
@@ -82,12 +82,12 @@ export declare module Trade {
     a2b: boolean;
     address: string;
     deadline?: number;
-    txb?: TransactionBlock;
+    txb?: Transaction;
   }
 }
 
 export class Trade extends Base {
-  async swap(options: Trade.SwapOptions): Promise<TransactionBlock> {
+  async swap(options: Trade.SwapOptions): Promise<Transaction> {
     const { coinTypeA, coinTypeB, address, amountSpecifiedIsInput, slippage } = options;
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
@@ -129,28 +129,27 @@ export class Trade extends Base {
       );
     });
 
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     txb.moveCall({
       target: `${contract.PackageId}::swap_router::${functionName}`,
       typeArguments: typeArguments,
       arguments: [
         ...routes.map(({ pool }) => txb.object(pool)),
         txb.makeMoveVec({
-          objects: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, amountA),
+          elements: this.coin.convertTradeCoins(txb, coinIds, coinTypeA, amountA),
         }),
-        txb.pure((amountSpecifiedIsInput ? amountA : amountB).toFixed(0), 'u64'),
-        txb.pure(
+        txb.pure.u64((amountSpecifiedIsInput ? amountA : amountB).toFixed(0)),
+        txb.pure.u64(
           this.amountOutWithSlippage(
             amountSpecifiedIsInput ? amountB : amountA,
             slippage,
             amountSpecifiedIsInput,
           ),
-          'u64',
         ),
-        ...sqrtPrices.map((price) => txb.pure(price, 'u128')),
-        txb.pure(amountSpecifiedIsInput, 'bool'),
-        txb.pure(address, 'address'),
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        ...sqrtPrices.map((price) => txb.pure.u128(price)),
+        txb.pure.bool(amountSpecifiedIsInput),
+        txb.pure.address(address),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],
@@ -168,9 +167,9 @@ export class Trade extends Base {
     let poolResult = await suiKit.multiGetObjects(this.provider, poolIds, {
       showContent: true,
     });
-    const txb = new TransactionBlock();
+    const txb = new Transaction();
     poolResult.map(async (pool) => {
-      const fields = getObjectFields(pool) as Pool.PoolFields;
+      const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
       const _pool = pools.find((item) => item.pool === fields.id.id);
 
       const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
@@ -188,17 +187,16 @@ export class Trade extends Base {
           // pool
           txb.object(fields.id.id),
           // a_to_b
-          txb.pure(_pool!.a2b, 'bool'),
+          txb.pure.bool(_pool!.a2b),
           // amount_specified
-          txb.pure(new Decimal(amountSpecified).toFixed(0), 'u128'),
+          txb.pure.u128(new Decimal(amountSpecified).toFixed(0)),
           // amount_specified_is_input
-          txb.pure(amountSpecifiedIsInput, 'bool'),
+          txb.pure.bool(amountSpecifiedIsInput),
           // sqrt_price_limit
-          txb.pure(
+          txb.pure.u128(
             this.math
               .tickIndexToSqrtPriceX64(_pool!.a2b ? min_tick : max_tick)
               .toString(),
-            'u128',
           ),
           // clock
           txb.object(SUI_CLOCK_OBJECT_ID),
@@ -234,12 +232,12 @@ export class Trade extends Base {
         showContent: true,
       },
     );
-    const txb = new TransactionBlock();
+    const txb = new Transaction();
     pools.forEach(async (pool) => {
       const poolObject = poolResults.find(
         (poolResult) => getObjectId(poolResult) === pool.pool,
       )!;
-      const fields = getObjectFields(poolObject) as Pool.PoolFields;
+      const fields = getObjectFields(poolObject) as unknown as Pool.PoolFields;
 
       const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
       let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);
@@ -256,15 +254,14 @@ export class Trade extends Base {
           // pool
           txb.object(fields.id.id),
           // a_to_b
-          txb.pure(pool.a2b, 'bool'),
+          txb.pure.bool(pool.a2b),
           // amount_specified
-          txb.pure(new Decimal(pool.amountSpecified).toFixed(0), 'u128'),
+          txb.pure.u128(new Decimal(pool.amountSpecified).toFixed(0)),
           // amount_specified_is_input
-          txb.pure(amountSpecifiedIsInput, 'bool'),
+          txb.pure.bool(amountSpecifiedIsInput),
           // sqrt_price_limit
-          txb.pure(
+          txb.pure.u128(
             this.math.tickIndexToSqrtPriceX64(pool.a2b ? min_tick : max_tick).toString(),
-            'u128',
           ),
           // clock
           txb.object(SUI_CLOCK_OBJECT_ID),
@@ -300,7 +297,7 @@ export class Trade extends Base {
       nextTickIndex,
       a2b,
     } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const _amountA = new Decimal(amountA);
     const _amountB = new Decimal(amountB);
 
@@ -340,21 +337,20 @@ export class Trade extends Base {
       arguments: [
         txb.object(poolId),
         txb.makeMoveVec({
-          objects: [sendCoin!],
+          elements: [sendCoin!],
         }),
-        txb.pure(swapAmount, 'u64'),
-        txb.pure(
+        txb.pure.u64(swapAmount),
+        txb.pure.u64(
           this.amountOutWithSlippage(
             new Decimal(a2b ? amountB : amountA),
             slippage,
             amountSpecifiedIsInput,
           ),
-          'u64',
         ),
-        txb.pure(price, 'u128'),
-        txb.pure(amountSpecifiedIsInput, 'bool'),
-        txb.pure(address, 'address'),
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.u128(price),
+        txb.pure.bool(amountSpecifiedIsInput),
+        txb.pure.address(address),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
       ],

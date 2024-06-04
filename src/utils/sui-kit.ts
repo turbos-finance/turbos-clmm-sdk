@@ -1,8 +1,4 @@
-import {
-  SuiClient,
-  SuiObjectDataOptions,
-  SuiObjectResponse,
-} from '@mysten/sui.js/client';
+import { SuiClient, SuiObjectDataOptions, SuiObjectResponse } from '@mysten/sui/client';
 
 export const multiGetObjects = async (
   provider: SuiClient,
