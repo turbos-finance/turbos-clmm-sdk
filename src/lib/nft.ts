@@ -1,9 +1,9 @@
-import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { Transaction } from '@mysten/sui/transactions';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
 import { getObjectFields, getObjectOwner } from './legacy';
-import type { SuiObjectResponse } from '@mysten/sui.js/client';
+import type { SuiObjectResponse } from '@mysten/sui/client';
 import Decimal from 'decimal.js';
 import { collectFeesQuote } from '../utils/collect-fees-quote';
 import { collectRewardsQuote } from '../utils/collect-rewards-quote';
@@ -78,7 +78,7 @@ export declare module NFT {
   export interface BurnOptions {
     pool: string;
     nft: string;
-    txb?: TransactionBlock;
+    txb?: Transaction;
   }
 }
 
@@ -94,7 +94,7 @@ export class NFT extends Base {
 
   async getFields(nftId: string): Promise<NFT.NftField> {
     const result = await this.getObject(nftId);
-    return getObjectFields(result) as NFT.NftField;
+    return getObjectFields(result) as unknown as NFT.NftField;
   }
 
   async getPositionFields(nftId: string): Promise<NFT.PositionField> {
@@ -103,7 +103,7 @@ export class NFT extends Base {
       parentId: contract.Positions,
       name: { type: 'address', value: nftId },
     });
-    return getObjectFields(result) as NFT.PositionField;
+    return getObjectFields(result) as unknown as NFT.PositionField;
   }
 
   async getPositionFieldsByPositionId(positionId: string): Promise<NFT.PositionField> {
@@ -112,7 +112,7 @@ export class NFT extends Base {
       options: { showContent: true },
     });
     validateObjectResponse(result, 'position');
-    return getObjectFields(result) as NFT.PositionField;
+    return getObjectFields(result) as unknown as NFT.PositionField;
   }
 
   async getPositionTick(
@@ -295,9 +295,9 @@ export class NFT extends Base {
     return liquidity.mul(sqrtPriceUpperX64.sub(sqrtPriceLowerX64)).shrn(64);
   }
 
-  async burn(options: NFT.BurnOptions): Promise<TransactionBlock> {
+  async burn(options: NFT.BurnOptions): Promise<Transaction> {
     const { pool, nft } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.pool.getPoolTypeArguments(pool);
 

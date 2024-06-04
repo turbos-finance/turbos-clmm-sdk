@@ -1,11 +1,8 @@
-import {
-  type TransactionObjectArgument,
-  TransactionBlock,
-} from '@mysten/sui.js/transactions';
-import { PaginatedCoins } from '@mysten/sui.js/client';
+import { type TransactionObjectArgument, Transaction } from '@mysten/sui/transactions';
+import { PaginatedCoins } from '@mysten/sui/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
-import { normalizeSuiAddress } from '@mysten/sui.js/utils';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 export class Coin extends Base {
   isSUI(coinType: string) {
@@ -64,17 +61,17 @@ export class Coin extends Base {
   }
 
   convertTradeCoins(
-    txb: TransactionBlock,
+    txb: Transaction,
     coinIds: string[],
     coinType: string,
     amount: Decimal,
   ): TransactionObjectArgument[] {
     return this.isSUI(coinType)
-      ? [txb.splitCoins(txb.gas, [txb.pure(amount.toNumber())])[0]!]
+      ? [txb.splitCoins(txb.gas, [txb.pure.u64(amount.toNumber())])[0]!]
       : coinIds.map((id) => txb.object(id));
   }
 
-  zero(token: string, txb: TransactionBlock): TransactionObjectArgument {
+  zero(token: string, txb: Transaction): TransactionObjectArgument {
     return txb.moveCall({
       typeArguments: [token],
       target: `0x2::coin::zero`,
@@ -99,7 +96,7 @@ export class Coin extends Base {
     address: string,
     coinType: string,
     amount: number,
-    txb: TransactionBlock,
+    txb: Transaction,
   ) {
     const coins = await this.selectTradeCoins(address, coinType, new Decimal(amount));
 
@@ -110,11 +107,11 @@ export class Coin extends Base {
     }
   }
 
-  splitSUIFromGas(amount: number[], txb: TransactionBlock) {
+  splitSUIFromGas(amount: number[], txb: Transaction) {
     return txb.splitCoins(txb.gas, amount);
   }
 
-  splitMultiCoins(coins: string[], amounts: number[], txb: TransactionBlock) {
+  splitMultiCoins(coins: string[], amounts: number[], txb: Transaction) {
     const coinObjects = coins.map((coin) => txb.object(coin));
     const mergedCoin = coinObjects[0]!;
     if (coins.length > 1) {

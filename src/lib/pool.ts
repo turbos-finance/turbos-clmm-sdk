@@ -1,11 +1,11 @@
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
-import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
+import { Transaction } from '@mysten/sui/transactions';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
-import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui.js/client';
+import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui/client';
 import { getObjectFields, getObjectId, getObjectType } from './legacy';
 import * as suiKit from '../utils/sui-kit';
 
@@ -25,7 +25,7 @@ export declare module Pool {
      */
     slippage: string | number;
     deadline?: number;
-    txb?: TransactionBlock;
+    txb?: Transaction;
   }
 
   export interface LiquidityParams {
@@ -182,7 +182,7 @@ export class Pool extends Base {
     });
     if (!withLocked) {
       pools = pools.filter((pool) => {
-        const fields = getObjectFields(pool) as Pool.PoolFields;
+        const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
         return fields.unlocked;
       });
     }
@@ -205,7 +205,7 @@ export class Pool extends Base {
     );
   }
 
-  async createPool(options: Pool.CreatePoolOptions): Promise<TransactionBlock> {
+  async createPool(options: Pool.CreatePoolOptions): Promise<Transaction> {
     const {
       fee,
       address,
@@ -224,7 +224,7 @@ export class Pool extends Base {
       this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const coinAObjects =
       coinIdsA.length > 0
         ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
@@ -243,32 +243,32 @@ export class Pool extends Base {
         // fee_type?
         txb.object(fee.objectId),
         // sqrt_price
-        txb.pure(sqrtPrice, 'u128'),
+        txb.pure.u128(sqrtPrice),
         // positions
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: coinAObjects,
+          elements: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: coinBObjects,
+          elements: coinBObjects,
         }),
         // tick_lower_index
-        txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
-        txb.pure(tickLower < 0, 'bool'),
+        txb.pure.u32(Number(Math.abs(tickLower).toFixed(0))),
+        txb.pure.bool(tickLower < 0),
         // tick_upper_index
-        txb.pure(Math.abs(tickUpper).toFixed(0), 'u32'),
-        txb.pure(tickUpper < 0, 'bool'),
+        txb.pure.u32(Number(Math.abs(tickUpper).toFixed(0))),
+        txb.pure.bool(tickUpper < 0),
         // amount_desired
-        txb.pure(amountA.toFixed(0), 'u64'),
-        txb.pure(amountB.toFixed(0), 'u64'),
+        txb.pure.u64(amountA.toFixed(0)),
+        txb.pure.u64(amountB.toFixed(0)),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
         // recipient
-        txb.pure(address, 'address'),
+        txb.pure.address(address),
         // deadline
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE), 'u64'),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE)),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -279,7 +279,7 @@ export class Pool extends Base {
     return txb;
   }
 
-  async addLiquidity(options: Pool.AddLiquidityOptions): Promise<TransactionBlock> {
+  async addLiquidity(options: Pool.AddLiquidityOptions): Promise<Transaction> {
     const { address, tickLower, tickUpper, slippage, pool } = options;
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
@@ -296,7 +296,7 @@ export class Pool extends Base {
       this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
 
     const coinAObjects =
       coinIdsA.length > 0
@@ -317,27 +317,27 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: coinAObjects,
+          elements: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: coinBObjects,
+          elements: coinBObjects,
         }),
         // tick_lower_index
-        txb.pure(Math.abs(tickLower).toFixed(0), 'u32'),
-        txb.pure(tickLower < 0, 'bool'),
+        txb.pure.u32(Number(Math.abs(tickLower).toFixed(0))),
+        txb.pure.bool(tickLower < 0),
         // tick_upper_index
-        txb.pure(Math.abs(tickUpper).toFixed(0), 'u32'),
-        txb.pure(tickUpper < 0, 'bool'),
+        txb.pure.u32(Number(Math.abs(tickUpper).toFixed(0))),
+        txb.pure.bool(tickUpper < 0),
         // amount_desired
-        txb.pure(amountA.toFixed(0), 'u64'),
-        txb.pure(amountB.toFixed(0), 'u64'),
+        txb.pure.u64(amountA.toFixed(0)),
+        txb.pure.u64(amountB.toFixed(0)),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
         // recipient
-        txb.pure(address, 'address'),
+        txb.pure.address(address),
         // deadline
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE), 'u64'),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE)),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -348,9 +348,7 @@ export class Pool extends Base {
     return txb;
   }
 
-  async increaseLiquidity(
-    options: Pool.IncreaseLiquidityOptions,
-  ): Promise<TransactionBlock> {
+  async increaseLiquidity(options: Pool.IncreaseLiquidityOptions): Promise<Transaction> {
     const { pool, slippage, address, nft } = options;
     const contract = await this.contract.getConfig();
     const amountA = new Decimal(options.amountA);
@@ -362,7 +360,7 @@ export class Pool extends Base {
       this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const coinAObjects =
       coinIdsA.length > 0
         ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
@@ -382,21 +380,21 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         // coins
         txb.makeMoveVec({
-          objects: coinAObjects,
+          elements: coinAObjects,
         }),
         txb.makeMoveVec({
-          objects: coinBObjects,
+          elements: coinBObjects,
         }),
         // nft
         txb.object(nft),
         // amount_desired
-        txb.pure(amountA.toFixed(0), 'u64'),
-        txb.pure(amountB.toFixed(0), 'u64'),
+        txb.pure.u64(amountA.toFixed(0)),
+        txb.pure.u64(amountB.toFixed(0)),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
         // deadline
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -406,16 +404,14 @@ export class Pool extends Base {
     return txb;
   }
 
-  async decreaseLiquidity(
-    options: Pool.DecreaseLiquidityOptions,
-  ): Promise<TransactionBlock> {
+  async decreaseLiquidity(options: Pool.DecreaseLiquidityOptions): Promise<Transaction> {
     const { slippage, nft, pool, decreaseLiquidity } = options;
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
 
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::decrease_liquidity`,
       typeArguments: typeArguments,
@@ -427,12 +423,12 @@ export class Pool extends Base {
         // nft
         txb.object(nft),
         // liquidity
-        txb.pure(new BN(decreaseLiquidity).toString(), 'u128'),
+        txb.pure.u128(new BN(decreaseLiquidity).toString()),
         // amount_min
-        txb.pure(this.getMinimumAmountBySlippage(amountA, slippage), 'u64'),
-        txb.pure(this.getMinimumAmountBySlippage(amountB, slippage), 'u64'),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
         // deadline
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         // versioned
@@ -442,7 +438,7 @@ export class Pool extends Base {
     return txb;
   }
 
-  async removeLiquidity(options: Pool.RemoveLiquidityOptions): Promise<TransactionBlock> {
+  async removeLiquidity(options: Pool.RemoveLiquidityOptions): Promise<Transaction> {
     let txb = await this.decreaseLiquidity(options);
     txb = await this.collectFee({ txb, ...options });
     txb = await this.collectReward({ txb, ...options });
@@ -451,7 +447,7 @@ export class Pool extends Base {
     return txb;
   }
 
-  async collectFee(options: Pool.CollectFeeOptions): Promise<TransactionBlock> {
+  async collectFee(options: Pool.CollectFeeOptions): Promise<Transaction> {
     const {
       pool,
       nft,
@@ -459,7 +455,7 @@ export class Pool extends Base {
       collectAmountA: amountAMax,
       collectAmountB: amountBMax,
     } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
 
     if (Number(amountAMax) === 0 && Number(amountBMax) === 0) {
       return txb;
@@ -476,13 +472,13 @@ export class Pool extends Base {
         txb.object(contract.Positions),
         txb.object(nft),
         // amount_a_max
-        txb.pure(amountAMax, 'u64'),
+        txb.pure.u64(amountAMax),
         // amount_a_max
-        txb.pure(amountBMax, 'u64'),
+        txb.pure.u64(amountBMax),
         //recipient
-        txb.pure(address),
+        txb.pure.address(address),
         // deadline
-        txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
         // clock
         txb.object(SUI_CLOCK_OBJECT_ID),
         txb.object(contract.Versioned),
@@ -492,9 +488,9 @@ export class Pool extends Base {
     return txb;
   }
 
-  async collectReward(options: Pool.CollectRewardOptions): Promise<TransactionBlock> {
+  async collectReward(options: Pool.CollectRewardOptions): Promise<Transaction> {
     const { pool: poolId, nft, rewardAmounts, address } = options;
-    const txb = options.txb || new TransactionBlock();
+    const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(poolId);
     const pool = await this.getPool(poolId);
@@ -509,10 +505,10 @@ export class Pool extends Base {
             txb.object(contract.Positions),
             txb.object(nft),
             txb.object(rewardInfo.fields.vault),
-            txb.pure(index, 'u64'),
-            txb.pure(rewardAmounts[index], 'u64'), //TODO
-            txb.pure(address),
-            txb.pure(Date.now() + (options.deadline || ONE_MINUTE * 3), 'u64'),
+            txb.pure.u64(index),
+            txb.pure.u64(Number(rewardAmounts[index])),
+            txb.pure.address(address),
+            txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
             txb.object(SUI_CLOCK_OBJECT_ID),
             txb.object(contract.Versioned),
           ],
@@ -622,7 +618,7 @@ export class Pool extends Base {
   }
 
   protected parsePool(pool: SuiObjectResponse): Pool.Pool {
-    const fields = getObjectFields(pool) as Pool.PoolFields;
+    const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
     const types = this.parsePoolType(type, 3);

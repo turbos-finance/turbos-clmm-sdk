@@ -40,7 +40,7 @@
     "node": ">=18.0.0"
   },
   "peerDependencies": {
-    "@mysten/sui.js": ">=0.38.0"
+    "@mysten/sui": "^1.0.0"
   },
   "dependencies": {
     "@scure/bip39": "^1.2.1",
@@ -53,7 +53,7 @@
   "devDependencies": {
     "@commitlint/cli": "^17.6.3",
     "@commitlint/config-conventional": "^17.6.3",
-    "@mysten/sui.js": "^0.50.1",
+    "@mysten/sui": "^1.0.4",
     "@release-it/conventional-changelog": "^5.1.1",
     "@types/node": "^18.16.3",
     "@vitest/coverage-c8": "^0.31.0",

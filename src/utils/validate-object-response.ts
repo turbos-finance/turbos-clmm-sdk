@@ -1,4 +1,4 @@
-import type { SuiObjectResponse } from '@mysten/sui.js/client';
+import type { SuiObjectResponse } from '@mysten/sui/client';
 import {
   getObjectDeletedResponse,
   getObjectId,
