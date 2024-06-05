@@ -1,5 +1,22 @@
 
 
+# [3.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.6.0...3.0.0) (2024-06-05)
+
+
+### Code Refactoring
+
+* move @mysten/sui.js to @mysten/sui ([8da797b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/8da797b4bf2bf359ed4a6ef831651510244ce512))
+
+
+### Features
+
+* @mysten/sui 1.0.5 ([d742ec7](https://github.com/turbos-finance/turbos-clmm-sdk/commit/d742ec78f6c2d9fa2b5f8b96348b834bf87a8976))
+
+
+### BREAKING CHANGES
+
+* peer deps are changed
+
 # [2.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.5.0...2.6.0) (2024-05-30)
 
 
