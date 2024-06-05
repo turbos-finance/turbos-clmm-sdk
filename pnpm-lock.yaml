@@ -1,5 +1,9 @@
 lockfileVersion: '6.0'
 
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
 dependencies:
   '@scure/bip39':
     specifier: ^1.2.1
@@ -28,8 +32,8 @@ devDependencies:
     specifier: ^17.6.3
     version: 17.6.3
   '@mysten/sui':
-    specifier: ^1.0.4
-    version: 1.0.4(svelte@4.2.17)(typescript@5.0.4)
+    specifier: ^1.0.5
+    version: 1.0.5(svelte@4.2.17)(typescript@5.0.4)
   '@release-it/conventional-changelog':
     specifier: ^5.1.1
     version: 5.1.1(release-it@15.10.3)
@@ -617,18 +621,18 @@ packages:
       '@jridgewell/sourcemap-codec': 1.4.15
     dev: true
 
-  /@mysten/bcs@1.0.1:
-    resolution: {integrity: sha512-ZcK3hkCxRcbMxuLgFf/dLTAVTkOg8J5e3QdQcbefh07Ja78O7M8nLgsgeBiNzWAuaD0B47DX0PoxxON8UngTaQ==}
+  /@mysten/bcs@1.0.2:
+    resolution: {integrity: sha512-haHT0km/9yIIe8lwo8gDFxGLnoxfRF4WmEVCz4lDXbEVQRsZkF0zB97kukiwMjDuFBaGVUhrOMCLz6td8tSMaQ==}
     dependencies:
       bs58: 5.0.0
     dev: true
 
-  /@mysten/sui@1.0.4(svelte@4.2.17)(typescript@5.0.4):
-    resolution: {integrity: sha512-75yxOlnsHo0lapJaUR7KRQvymMPz9roDZ64onaRi109JToOqPxfegvFm7016kf1AgmnXT1TQiYue4ntGts5tsA==}
+  /@mysten/sui@1.0.5(svelte@4.2.17)(typescript@5.0.4):
+    resolution: {integrity: sha512-6CNYRT3XOMu/nWkyFq4/AkjKVcr7VH8pHi3/Jo4Tm5sOt4lqKUgQo8wjnAM2mwT3ish1iHsQOuDiJFthPsCCuA==}
     engines: {node: '>=18'}
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.8.1)
-      '@mysten/bcs': 1.0.1
+      '@mysten/bcs': 1.0.2
       '@noble/curves': 1.2.0
       '@noble/hashes': 1.3.2
       '@scure/bip32': 1.3.2
@@ -5589,7 +5593,3 @@ packages:
     resolution: {integrity: sha512-9bnSc/HEW2uRy67wc+T8UwauLuPJVn28jb+GtJY16iiKWyvmYJRXVT4UamsAEGQfPohgr2q4Tq0sQbQlxTfi1g==}
     engines: {node: '>=12.20'}
     dev: true
-
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
