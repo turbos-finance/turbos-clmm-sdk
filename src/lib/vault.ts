@@ -1,4 +1,4 @@
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
+import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { Transaction, type TransactionObjectArgument } from '@mysten/sui/transactions';
 import { Base } from './base';
 import { validateObjectResponse } from '../utils/validate-object-response';
@@ -7,6 +7,7 @@ import BN from 'bn.js';
 import Decimal from 'decimal.js';
 import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 import { ONE_MINUTE } from './trade';
+import { bcs } from '@mysten/sui/dist/cjs/bcs';
 
 export declare module Vault {
   export interface VaultStrategyField {
@@ -228,6 +229,14 @@ export declare module Vault {
     tick_pre_index: {
       bits: number;
     };
+  }
+
+  export interface VaultBalanceAmountOptions {
+    strategyId: string;
+    vaultId: string;
+    coinTypeA: string;
+    coinTypeB: string;
+    address: string;
   }
 }
 
@@ -931,5 +940,43 @@ export class Vault extends Base {
       lower_index < MIN_TICK_INDEX ? MIN_TICK_INDEX : lower_index,
       upper_index > MAX_TICK_INDEX ? MAX_TICK_INDEX : upper_index,
     ];
+  }
+
+  async getVaultBalanceAmount(
+    options: Vault.VaultBalanceAmountOptions,
+  ): Promise<[string, string]> {
+    const { strategyId, vaultId, coinTypeA, coinTypeB, address } = options;
+    const txb = new Transaction();
+    const vaultContract = await this.contract.getConfig();
+    txb.moveCall({
+      target: `${vaultContract.VaultPackageId}::vault::vault_balance_amount`,
+      arguments: [txb.object(strategyId), txb.pure.address(vaultId)],
+      typeArguments: [normalizeStructTag(coinTypeA)],
+    });
+
+    txb.moveCall({
+      target: `${vaultContract.VaultPackageId}::vault::vault_balance_amount`,
+      arguments: [txb.object(strategyId), txb.pure.address(vaultId)],
+      typeArguments: [normalizeStructTag(coinTypeB)],
+    });
+
+    try {
+      const result = await this.provider.devInspectTransactionBlock({
+        transactionBlock: txb,
+        sender: address,
+      });
+
+      if (result.error) {
+        return ['0', '0'];
+      }
+      
+      return [
+        bcs.U64.parse(Uint8Array.from(result.results![0]!.returnValues![0]![0])),
+        bcs.U64.parse(Uint8Array.from(result.results![1]!.returnValues![0]![0])),
+      ];
+    } catch (err) {
+      console.log(`getVaultBalanceAmount error: ${err}`);
+    }
+    return ['0', '0'];
   }
 }
