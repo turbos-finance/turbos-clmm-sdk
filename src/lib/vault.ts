@@ -7,7 +7,12 @@ import BN from 'bn.js';
 import Decimal from 'decimal.js';
 import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 import { ONE_MINUTE } from './trade';
-import { bcs } from '@mysten/sui/dist/cjs/bcs';
+import { bcs } from '@mysten/sui/bcs';
+import { SuiObjectResponse } from '@mysten/sui/client';
+import { NFT } from './nft';
+import { unstable_getObjectFields } from '..';
+import { forEacGetOwnedObjects, multiGetObjects } from '../utils/sui-kit';
+import { isNullObjectId } from '../utils/is-null-object-id';
 
 export declare module Vault {
   export interface VaultStrategyField {
@@ -237,6 +242,54 @@ export declare module Vault {
     coinTypeA: string;
     coinTypeB: string;
     address: string;
+  }
+
+  export interface MyVaultOwnedObjects {
+    description: string;
+    id: { id: string };
+    name: string;
+    strategy_id: string;
+    url: string;
+    coin_a_type_name: {
+      fields: {
+        name: string;
+      };
+    };
+    coin_b_type_name: {
+      fields: {
+        name: string;
+      };
+    };
+  }
+
+  export interface TurbosMyVaultPosition extends NFT.PositionField {
+    tickLower: number;
+    tickUpper: number;
+    objectId: string;
+  }
+
+  export interface TurbosMyVault {
+    coinTypeA: string;
+    coinTypeB: string;
+    strategyId: string;
+    url: string;
+    name: string;
+    id: string;
+    nftId: string;
+    vaultId: string;
+    baseLowerTick: number;
+    baseUpperTick: number;
+    limitLowerTick: number;
+    limitUpperTick: number;
+    sqrt_price: string;
+    base_liquidity: string;
+    limit_liquidity: string;
+    clmm_pool_id: string;
+    limit_clmm_position_id: string;
+    base_clmm_position_id: string;
+    accountsId: string;
+    limit_clmm_position?: TurbosMyVaultPosition;
+    base_clmm_position?: TurbosMyVaultPosition;
   }
 }
 
@@ -978,5 +1031,151 @@ export class Vault extends Base {
       console.log(`getVaultBalanceAmount error: ${err}`);
     }
     return ['0', '0'];
+  }
+
+  async getMyVaults(address: string) {
+    const vaultContract = await this.contract.getConfig();
+
+    const objects = await forEacGetOwnedObjects<Vault.MyVaultOwnedObjects>(
+      this.provider,
+      address,
+      {
+        Package: vaultContract.VaultOriginPackageId,
+      },
+    );
+
+    const strategyIds = objects.map((item) => item.strategy_id);
+    const strategyObjects = await multiGetObjects(
+      this.provider,
+      Array.from(new Set(strategyIds)),
+      {
+        showContent: true,
+      },
+    );
+    const obj: Record<
+      string,
+      { vaultId: string; clmm_pool_id: string; accountsId: string }
+    > = {};
+    strategyObjects.forEach((item) => {
+      const fields = unstable_getObjectFields(
+        item,
+      ) as unknown as Vault.VaultStrategyField;
+      obj[fields.id.id] = {
+        vaultId: fields.vaults.fields.id.id,
+        clmm_pool_id: fields.clmm_pool_id,
+        accountsId: fields.accounts.fields.id.id,
+      };
+    });
+
+    const gets: Promise<SuiObjectResponse>[] = [];
+    objects.forEach((item) => {
+      if (obj[item.strategy_id]?.vaultId) {
+        gets.push(
+          this.provider.getDynamicFieldObject({
+            parentId: obj[item.strategy_id]!.vaultId,
+            name: {
+              type: '0x2::object::ID',
+              value: item.id.id,
+            },
+          }),
+        );
+      }
+    });
+
+    if (gets.length < 1) {
+      return [];
+    }
+
+    const vaultObjects = await Promise.all(gets);
+
+    const myVaults: Vault.TurbosMyVault[] = objects.map((item) => {
+      const res = vaultObjects.find((vault) => {
+        const fields = unstable_getObjectFields(
+          vault,
+        ) as unknown as Vault.VaultsIdMyStrategyVaultField;
+        return fields.name === item.id.id;
+      })!;
+      const fieldObject = unstable_getObjectFields(
+        res,
+      ) as unknown as Vault.VaultsIdMyStrategyVaultField;
+      const field = fieldObject.value.fields.value.fields;
+
+      return {
+        accountsId: obj[item.strategy_id]!.accountsId,
+        coinTypeA: item.coin_a_type_name.fields.name,
+        coinTypeB: item.coin_b_type_name.fields.name,
+        strategyId: item.strategy_id,
+        url: item.url,
+        name: item.name,
+        id: item.id.id,
+        nftId: item.id.id,
+        vaultId: field.vault_id,
+        baseLowerTick: this.math.bitsToNumber(field.base_lower_index.fields.bits),
+        baseUpperTick: this.math.bitsToNumber(field.base_upper_index.fields.bits),
+        limitLowerTick: this.math.bitsToNumber(field.limit_lower_index.fields.bits),
+        limitUpperTick: this.math.bitsToNumber(field.limit_upper_index.fields.bits),
+        sqrt_price: field.sqrt_price,
+        base_liquidity: field.base_liquidity,
+        limit_liquidity: field.limit_liquidity,
+        clmm_pool_id: obj[item.strategy_id]!.clmm_pool_id,
+        limit_clmm_position_id: field.limit_clmm_position_id,
+        base_clmm_position_id: field.base_clmm_position_id,
+      };
+    });
+
+    const vaultPositions: string[] = [];
+    myVaults.forEach((item) => {
+      !isNullObjectId(item.limit_clmm_position_id) &&
+        vaultPositions.push(item.limit_clmm_position_id);
+      !isNullObjectId(item.base_clmm_position_id) &&
+        vaultPositions.push(item.base_clmm_position_id);
+    });
+
+    const positionObjects = await multiGetObjects(
+      this.provider,
+      Array.from(new Set(vaultPositions)),
+      {
+        showContent: true,
+      },
+    );
+
+    positionObjects.forEach((position) => {
+      const fields = unstable_getObjectFields(position) as unknown as NFT.PositionField;
+      const myVaultPosition = {
+        ...fields,
+        tickLower: this.math.bitsToNumber(fields.tick_lower_index.fields.bits),
+        tickUpper: this.math.bitsToNumber(fields.tick_upper_index.fields.bits),
+        objectId: fields.id.id,
+      };
+
+      let index: number | undefined;
+      const myVault = myVaults.find((item, i) => {
+        const isFind =
+          item.limit_clmm_position_id === fields.id.id ||
+          item.base_clmm_position_id === fields.id.id;
+        if (isFind) {
+          index = i;
+        }
+        return isFind;
+      });
+
+      if (
+        myVault &&
+        index !== undefined &&
+        myVault.limit_clmm_position_id === fields.id.id
+      ) {
+        myVault.limit_clmm_position = myVaultPosition;
+        myVaults[index] = myVault;
+      } else if (
+        myVault &&
+        index !== undefined &&
+        myVault.base_clmm_position_id === fields.id.id
+      ) {
+        myVault.base_clmm_position = myVaultPosition;
+        myVaults[index] = myVault;
+      }
+    });
+
+    return myVaults;
   }
 }
