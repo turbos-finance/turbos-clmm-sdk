@@ -1022,7 +1022,7 @@ export class Vault extends Base {
       if (result.error) {
         return ['0', '0'];
       }
-      
+
       return [
         bcs.U64.parse(Uint8Array.from(result.results![0]!.returnValues![0]![0])),
         bcs.U64.parse(Uint8Array.from(result.results![1]!.returnValues![0]![0])),
