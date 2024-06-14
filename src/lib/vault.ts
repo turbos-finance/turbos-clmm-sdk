@@ -664,7 +664,7 @@ export class Vault extends Base {
         txb.pure(a2b ? amountA : amountB, 'u64'),
         txb.pure(
           this.trade.amountOutWithSlippage(
-            new Decimal(a2b ? amountB : amountA),
+            new Decimal(0),
             options.slippage?.toString() || '99',
             true,
           ),
