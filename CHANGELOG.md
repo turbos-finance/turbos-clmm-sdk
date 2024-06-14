@@ -1,5 +1,12 @@
 
 
+## [2.6.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.6.0...2.6.1) (2024-06-14)
+
+
+### Bug Fixes
+
+* withdraw devinspect swap amountout slippage ([f5dadca](https://github.com/turbos-finance/turbos-clmm-sdk/commit/f5dadcad728eb9103dc0884af8e2e8fd098cc2a9))
+
 # [2.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/2.5.0...2.6.0) (2024-05-30)
 
 
