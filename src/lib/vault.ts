@@ -662,14 +662,7 @@ export class Vault extends Base {
           objects: [a2b ? coinVecA! : coinVecB!],
         }),
         txb.pure(a2b ? amountA : amountB, 'u64'),
-        txb.pure(
-          this.trade.amountOutWithSlippage(
-            new Decimal(a2b ? amountB : amountA),
-            options.slippage?.toString() || '99',
-            true,
-          ),
-          'u64',
-        ),
+        txb.pure('0', 'u64'),
         txb.pure(
           this.math
             .tickIndexToSqrtPriceX64(a2b ? MIN_TICK_INDEX : MAX_TICK_INDEX)
