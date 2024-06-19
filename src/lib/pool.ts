@@ -190,7 +190,7 @@ export class Pool extends Base {
     return pools.map((pool) => this.parsePool(pool));
   }
 
-  async getPool(poolId: string) {
+  async getPool(poolId: string, ttl = 1500) {
     return this.getCacheOrSet(
       `pool-${poolId}`,
       async () => {
@@ -201,7 +201,7 @@ export class Pool extends Base {
         validateObjectResponse(result, 'pool');
         return this.parsePool(result);
       },
-      1500,
+      ttl,
     );
   }
 

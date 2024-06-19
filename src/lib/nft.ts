@@ -355,10 +355,11 @@ export class NFT extends Base {
     getPrice(coinType: string): Promise<string | number | undefined>;
   }) {
     const { position, poolId } = options;
+    const positionField = await this.getPositionFieldsByPositionId(position.id.id);
     const [pool, tickLowerDetail, tickUpperDetail] = await Promise.all([
-      this.pool.getPool(poolId),
-      this.nft.getPositionTick(poolId, position.tick_lower_index),
-      this.nft.getPositionTick(poolId, position.tick_upper_index),
+      this.pool.getPool(poolId, 30),
+      this.nft.getPositionTick(poolId, positionField.tick_lower_index),
+      this.nft.getPositionTick(poolId, positionField.tick_upper_index),
     ]);
     const opts = {
       ...options,
