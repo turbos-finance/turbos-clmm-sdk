@@ -1,5 +1,9 @@
 import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { Transaction, type TransactionObjectArgument } from '@mysten/sui/transactions';
+import {
+  Transaction,
+  type TransactionResult,
+  type TransactionObjectArgument,
+} from '@mysten/sui/transactions';
 import { Base } from './base';
 import { validateObjectResponse } from '../utils/validate-object-response';
 import { getObjectFields } from './legacy';
@@ -138,16 +142,25 @@ export declare module Vault {
     limitTickStep: number;
   }
 
+  export interface CreateVaultAndDepositVaultArguments
+    extends CreateAndDepositVaultArguments {
+    baseThreshold?: number;
+    limitThreshold?: number;
+  }
+
   export interface CreateVaultArguments
     extends Pick<
       Vault.CreateAndDepositVaultArguments,
       | 'strategyId'
       | 'txb'
-      | 'address'
+      | 'poolId'
       | 'baseLowerIndex'
       | 'baseUpperIndex'
       | 'limitLowerIndex'
       | 'limitUpperIndex'
+      | 'baseTickStep'
+      | 'limitTickStep'
+      | 'address'
     > {}
 
   export interface DepositVaultArguments
@@ -162,8 +175,10 @@ export declare module Vault {
       | 'coinTypeB'
       | 'amountA'
       | 'amountB'
+      | 'baseLowerIndex'
+      | 'baseUpperIndex'
     > {
-    vaultId: string;
+    vaultId: string | TransactionResult;
   }
 
   export interface WithdrawVaultArguments {
@@ -423,25 +438,30 @@ export class Vault extends Base {
     return txb;
   }
 
-  async createVault(options: Vault.CreateVaultArguments): Promise<Transaction> {
+  async createVault(options: Vault.CreateVaultArguments): Promise<{
+    txb: Transaction;
+    vault: TransactionResult;
+  }> {
     const {
       strategyId,
-      address,
+      poolId,
       baseLowerIndex,
       baseUpperIndex,
       limitLowerIndex,
       limitUpperIndex,
+      baseTickStep,
+      limitTickStep,
     } = options;
     const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
 
-    const fields = await this.getStrategy(strategyId);
-
-    txb.moveCall({
-      target: `${contract.VaultPackageId}::router::open_vault`,
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+    const vault = txb.moveCall({
+      target: `${contract.VaultPackageId}::vault::open_vault`,
       arguments: [
         txb.object(contract.VaultGlobalConfig),
         txb.object(strategyId),
+        txb.object(poolId),
         txb.pure.u32(Number(Math.abs(baseLowerIndex).toFixed(0))),
         txb.pure.bool(baseLowerIndex < 0),
         txb.pure.u32(Number(Math.abs(baseUpperIndex).toFixed(0))),
@@ -450,19 +470,26 @@ export class Vault extends Base {
         txb.pure.bool(limitLowerIndex < 0),
         txb.pure.u32(Number(Math.abs(limitUpperIndex).toFixed(0))),
         txb.pure.bool(limitUpperIndex < 0),
-        txb.pure.address(address),
+        txb.pure.u32(Number(Math.abs(baseTickStep).toFixed(0))),
+        txb.pure.u32(Number(Math.abs(limitTickStep).toFixed(0))),
       ],
-      typeArguments: [
-        fields.coin_a_type_name.fields.name,
-        fields.coin_b_type_name.fields.name,
-      ],
+      typeArguments: typeArguments,
     });
 
-    return txb;
+    return { txb, vault };
   }
 
   async depositVault(options: Vault.DepositVaultArguments): Promise<Transaction> {
-    const { strategyId, vaultId, poolId, coinTypeA, coinTypeB, address } = options;
+    const {
+      strategyId,
+      vaultId,
+      poolId,
+      coinTypeA,
+      coinTypeB,
+      address,
+      baseLowerIndex,
+      baseUpperIndex,
+    } = options;
 
     let txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
@@ -474,20 +501,7 @@ export class Vault extends Base {
     if (!options.amountA && !options.amountB) {
       return txb;
     } else if (options.amountB === '0' || options.amountA === '0') {
-      const strategyFields = await this.getStrategy(strategyId);
-      const vaultFields = await this.getStrategyVault(
-        strategyFields.vaults.fields.id.id,
-        vaultId,
-      );
       const poolFields = await this.pool.getPool(poolId);
-
-      const baseLowerIndex = this.math.bitsToNumber(
-        vaultFields.value.fields.value.fields.base_lower_index.fields.bits,
-      );
-      const baseUpperIndex = this.math.bitsToNumber(
-        vaultFields.value.fields.value.fields.base_upper_index.fields.bits,
-      );
-
       const swapWithReturnResult = await this.onlyTokenSwapWithReturn({
         liquidity: poolFields.liquidity,
         sqrt_price: poolFields.sqrt_price,
@@ -537,12 +551,12 @@ export class Vault extends Base {
     }
 
     txb.moveCall({
-      target: `${contract.VaultPackageId}::router::deposit`,
+      target: `${contract.VaultPackageId}::vault::deposit`,
       arguments: [
         txb.object(contract.VaultGlobalConfig),
         txb.object(contract.VaultRewarderManager),
         txb.object(strategyId),
-        txb.object(vaultId),
+        typeof vaultId === 'string' ? txb.object(vaultId) : vaultId,
         txb.object(poolId),
         txb.object(contract.Positions),
         _sendCoinA!,
@@ -555,6 +569,37 @@ export class Vault extends Base {
     });
 
     return txb;
+  }
+
+  async createVaultAndDepositVault(
+    options: Vault.CreateVaultAndDepositVaultArguments,
+  ): Promise<Transaction> {
+    const { txb, vault } = await this.createVault({ ...options });
+    let _txb = await this.depositVault({
+      ...options,
+      txb: txb,
+      vaultId: vault,
+    });
+
+    if (options.baseThreshold) {
+      _txb = await this.updateVaultBaseRebalanceThresholdByOwner({
+        strategyId: options.strategyId,
+        vaultId: vault,
+        baseRebalanceThreshold: options.baseThreshold,
+        txb: _txb,
+      });
+    }
+
+    if (options.limitThreshold) {
+      _txb = await this.updateVaultLimitRebalanceThresholdByOwner({
+        strategyId: options.strategyId,
+        vaultId: vault,
+        limitRebalanceThreshold: options.limitThreshold,
+        txb: _txb,
+      });
+    }
+    _txb.transferObjects([vault], options.address);
+    return _txb;
   }
 
   async withdrawVaultV2(options: Vault.WithdrawVaultArguments): Promise<Transaction> {
@@ -1177,5 +1222,52 @@ export class Vault extends Base {
     });
 
     return myVaults;
+  }
+
+  async updateVaultBaseRebalanceThresholdByOwner(options: {
+    strategyId: string;
+    vaultId: string | TransactionResult;
+    baseRebalanceThreshold: number;
+    txb?: Transaction;
+  }) {
+    const { baseRebalanceThreshold, strategyId, vaultId } = options;
+    const txb = options.txb || new Transaction();
+    const contract = await this.contract.getConfig();
+
+    txb.moveCall({
+      target: `${contract.VaultPackageId}::router::update_vault_base_rebalance_threshold_by_owner`,
+      arguments: [
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(strategyId),
+        txb.object(vaultId),
+        txb.pure.u32(baseRebalanceThreshold),
+      ],
+    });
+
+    return txb;
+  }
+
+  async updateVaultLimitRebalanceThresholdByOwner(options: {
+    strategyId: string;
+    vaultId: string | TransactionResult;
+    limitRebalanceThreshold: number;
+    txb?: Transaction;
+  }) {
+    const { limitRebalanceThreshold, strategyId, vaultId } = options;
+    const txb = options.txb || new Transaction();
+
+    const contract = await this.contract.getConfig();
+
+    txb.moveCall({
+      target: `${contract.VaultPackageId}::router::update_vault_limit_rebalance_threshold_by_owner`,
+      arguments: [
+        txb.object(contract.VaultGlobalConfig),
+        txb.object(strategyId),
+        txb.object(vaultId),
+        txb.pure.u32(limitRebalanceThreshold),
+      ],
+    });
+
+    return txb;
   }
 }
