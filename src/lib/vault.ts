@@ -291,6 +291,24 @@ export declare module Vault {
     limit_clmm_position?: TurbosMyVaultPosition;
     base_clmm_position?: TurbosMyVaultPosition;
   }
+
+  export interface TurbosVaultAmount
+    extends Pick<
+      TurbosMyVault,
+      | 'strategyId'
+      | 'vaultId'
+      | 'base_liquidity'
+      | 'limit_liquidity'
+      | 'baseLowerTick'
+      | 'baseUpperTick'
+      | 'limitLowerTick'
+      | 'limitUpperTick'
+      | 'coinTypeA'
+      | 'coinTypeB'
+    > {
+    address: string;
+    poolSqrtPrice: string;
+  }
 }
 
 export class Vault extends Base {
@@ -1177,5 +1195,38 @@ export class Vault extends Base {
     });
 
     return myVaults;
+  }
+
+  async getVaultAmount(options: Vault.TurbosVaultAmount): Promise<[string, string]> {
+    const [baseAmountA, baseAmountB] = this.pool.getTokenAmountsFromLiquidity({
+      liquidity: new BN(
+        options.base_liquidity === undefined ? 100_000_000 : options.base_liquidity,
+      ),
+      currentSqrtPrice: new BN(options.poolSqrtPrice),
+      lowerSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.baseLowerTick),
+      upperSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.baseUpperTick),
+    });
+
+    const [limitAmountA, limitAmountB] = this.pool.getTokenAmountsFromLiquidity({
+      liquidity: new BN(
+        options.limit_liquidity === undefined ? 100_000_000 : options.limit_liquidity,
+      ),
+      currentSqrtPrice: new BN(options.poolSqrtPrice),
+      lowerSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.limitLowerTick),
+      upperSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.limitUpperTick),
+    });
+
+    const [amountA, amountB] = await this.getVaultBalanceAmount({
+      strategyId: options.strategyId,
+      vaultId: options.vaultId,
+      coinTypeA: options.coinTypeA,
+      coinTypeB: options.coinTypeB,
+      address: options.address,
+    });
+
+    return [
+      baseAmountA.add(limitAmountA).add(new BN(amountA)).toString(),
+      baseAmountB.add(limitAmountB).add(new BN(amountB)).toString(),
+    ];
   }
 }
