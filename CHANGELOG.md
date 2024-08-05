@@ -1,5 +1,12 @@
 
 
+# [3.1.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.0.2...3.1.0) (2024-08-05)
+
+
+### Features
+
+* add get address vault‘s a token and b token amount ([3fac662](https://github.com/turbos-finance/turbos-clmm-sdk/commit/3fac662c1e49ea30784c7554c5ae17ffe6db17a8))
+
 ## [3.0.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.0.1...3.0.2) (2024-06-20)
 
 ## [3.0.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.0.0...3.0.1) (2024-06-11)
