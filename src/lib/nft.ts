@@ -408,19 +408,19 @@ export class NFT extends Base {
     let scaledFeeOwedA = this.math.scaleDown(collectFees.feeOwedA, coinA.decimals);
     let scaledFeeOwedB = this.math.scaleDown(collectFees.feeOwedB, coinB.decimals);
 
-    function isTooLarge(value: string, decimals: number) {
-      const max = new Decimal(1_000_000).mul(Decimal.pow(10, decimals));
-      return max.lt(value);
-    }
+    // function isTooLarge(value: string, decimals: number) {
+    //   const max = new Decimal(1_000_000).mul(Decimal.pow(10, decimals));
+    //   return max.lt(value);
+    // }
 
-    if (isTooLarge(scaledFeeOwedA, coinA.decimals)) {
-      scaledFeeOwedA = '0';
-      collectFees.feeOwedA = '0';
-    }
-    if (isTooLarge(scaledFeeOwedB, coinB.decimals)) {
-      scaledFeeOwedB = '0';
-      collectFees.feeOwedB = '0';
-    }
+    // if (isTooLarge(scaledFeeOwedA, coinA.decimals)) {
+    //   scaledFeeOwedA = '0';
+    //   collectFees.feeOwedA = '0';
+    // }
+    // if (isTooLarge(scaledFeeOwedB, coinB.decimals)) {
+    //   scaledFeeOwedB = '0';
+    //   collectFees.feeOwedB = '0';
+    // }
 
     const unclaimedFeeA =
       priceA === void 0 ? new Decimal(0) : new Decimal(priceA).mul(scaledFeeOwedA);
