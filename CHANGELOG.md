@@ -1,5 +1,12 @@
 
 
+## [3.1.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.0...3.1.1) (2024-09-02)
+
+
+### Bug Fixes
+
+* when fee big value, default value is 0 ([2cb589c](https://github.com/turbos-finance/turbos-clmm-sdk/commit/2cb589c64e317f11cecb5fa400b4617ef7bd80e3))
+
 # [3.1.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.0.2...3.1.0) (2024-08-05)
 
 
