@@ -8,6 +8,7 @@ import BN from 'bn.js';
 import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui/client';
 import { getObjectFields, getObjectId, getObjectType } from './legacy';
 import * as suiKit from '../utils/sui-kit';
+import { deprecatedPoolRewards } from '../utils/deprecated-pool-rewards';
 
 const ONE_MINUTE = 60 * 1000;
 
@@ -496,7 +497,11 @@ export class Pool extends Base {
     const pool = await this.getPool(poolId);
 
     pool.reward_infos.forEach((rewardInfo, index) => {
-      if (rewardAmounts[index] !== '0' && rewardAmounts[index] !== 0) {
+      if (
+        rewardAmounts[index] !== '0' &&
+        rewardAmounts[index] !== 0 &&
+        !deprecatedPoolRewards(pool.id.id, index)
+      ) {
         txb.moveCall({
           target: `${contract.PackageId}::position_manager::collect_reward`,
           typeArguments: [...typeArguments, rewardInfo.fields.vault_coin_type],
@@ -623,6 +628,7 @@ export class Pool extends Base {
     const type = getObjectType(pool)!;
     const types = this.parsePoolType(type, 3);
     this.getCacheOrSet('pool-type-' + objectId, async () => types);
+
     return {
       ...fields,
       objectId,
