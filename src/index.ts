@@ -7,3 +7,4 @@ export {
   getObjectId as unstable_getObjectId,
   getObjectFields as unstable_getObjectFields,
 } from './lib/legacy';
+export { isDeprecatedPool, deprecatedPoolRewards } from './utils/deprecated-pool-rewards';

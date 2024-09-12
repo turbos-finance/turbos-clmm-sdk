@@ -2,13 +2,18 @@ import type { MathUtil, NFT, Pool } from '../lib';
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
 import { bitMath } from './bit-math';
+import { deprecatedPoolRewards } from './deprecated-pool-rewards';
 
 export const collectRewardsQuote = (
   math: MathUtil,
   options: {
     pool: Pick<
       Pool.Pool,
-      'reward_last_updated_time_ms' | 'reward_infos' | 'tick_current_index' | 'liquidity'
+      | 'reward_last_updated_time_ms'
+      | 'reward_infos'
+      | 'tick_current_index'
+      | 'liquidity'
+      | 'id'
     >;
     position: NFT.PositionField;
     tickLowerDetail: NFT.PositionTick;
@@ -93,17 +98,19 @@ export const collectRewardsQuote = (
     // Knowing the growth of the reward checkpoint for the position, calculate and increment the amount owed for each reward.
     const amountOwedX64 = positionRewardInfo.amountOwed.shln(64);
 
-    rewardOwed[i] = amountOwedX64
-      .add(
-        math
-          .subUnderflowU128(
-            rewardGrowthInsideX64,
-            positionRewardInfo.growthInsideCheckpoint,
+    rewardOwed[i] = deprecatedPoolRewards(pool.id.id, i)
+      ? '0'
+      : amountOwedX64
+          .add(
+            math
+              .subUnderflowU128(
+                rewardGrowthInsideX64,
+                positionRewardInfo.growthInsideCheckpoint,
+              )
+              .mul(positionLiquidity),
           )
-          .mul(positionLiquidity),
-      )
-      .shrn(64)
-      .toString();
+          .shrn(64)
+          .toString();
   }
 
   return rewardOwed;
