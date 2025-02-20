@@ -84,6 +84,19 @@ export declare module Trade {
     deadline?: number;
     txb?: Transaction;
   }
+
+  export interface SwapWithPartnerOptions {
+    poolId: string;
+    swapAmount: string;
+    amountSpecifiedIsInput: boolean;
+    slippage: string;
+    a2b: boolean;
+    address: string;
+    deadline?: number;
+    txb?: Transaction;
+    partner: string;
+    withReturn?: boolean;
+  }
 }
 
 export class Trade extends Base {
@@ -156,6 +169,102 @@ export class Trade extends Base {
     });
 
     return txb;
+  }
+
+  async swapWithPartner(options: Trade.SwapWithPartnerOptions) {
+    const {
+      poolId,
+      swapAmount,
+      address,
+      slippage,
+      amountSpecifiedIsInput,
+      a2b,
+      partner,
+      withReturn,
+    } = options;
+    const txb = options.txb || new Transaction();
+
+    const typeArguments = await this.pool.getPoolTypeArguments(poolId);
+    const coinTypeA = typeArguments[0];
+    const coinTypeB = typeArguments[1];
+    const contract = await this.contract.getConfig();
+
+    const swapResult = await this.computeSwapResultV2({
+      pools: [
+        {
+          pool: poolId,
+          a2b: a2b,
+          amountSpecified: swapAmount,
+        },
+      ],
+      address: address,
+      amountSpecifiedIsInput,
+    });
+
+    const amountThreshold = this.amountOutWithSlippage(
+      new Decimal(
+        a2b == amountSpecifiedIsInput ? swapResult[0]!.amount_b : swapResult[0]!.amount_a,
+      ),
+      slippage,
+      amountSpecifiedIsInput,
+    );
+
+    let sendCoinA;
+    let sendCoinB;
+    let mergeCoin;
+    if (a2b) {
+      [sendCoinA, mergeCoin] = await this.coin.takeAmountFromCoins(
+        address,
+        coinTypeA,
+        new Decimal(amountSpecifiedIsInput ? swapAmount : amountThreshold).toNumber(),
+        txb,
+      );
+      sendCoinB = this.coin.zero(coinTypeB, txb);
+    } else {
+      [sendCoinB, mergeCoin] = await this.coin.takeAmountFromCoins(
+        address,
+        coinTypeB,
+        new Decimal(amountSpecifiedIsInput ? swapAmount : amountThreshold).toNumber(),
+        txb,
+      );
+      sendCoinA = this.coin.zero(coinTypeA, txb);
+    }
+
+    const [coinA, coinB] = txb.moveCall({
+      target: `${contract.PackageId}::swap_router::swap_with_partner`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(poolId),
+        txb.object(partner),
+        sendCoinA!,
+        sendCoinB!,
+        txb.pure.bool(a2b),
+        txb.pure.u64(swapAmount),
+        txb.pure.u64(amountThreshold),
+        txb.pure.u128(this.getDefaultSqrtPriceLimit(a2b)),
+        txb.pure.bool(amountSpecifiedIsInput),
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        txb.object(contract.Versioned),
+      ],
+    });
+    if (mergeCoin) {
+      txb.transferObjects([mergeCoin], address);
+    }
+    if (withReturn) {
+      return {
+        txb,
+        coinA,
+        coinB,
+      };
+    } else {
+      txb.transferObjects([coinA!, coinB!], address);
+      return {
+        txb,
+        coinA: undefined,
+        coinB: undefined,
+      };
+    }
   }
 
   async computeSwapResult(
@@ -418,6 +527,10 @@ export class Trade extends Base {
 
     const plus = new Decimal(100).plus(slippage).div(100);
     return new Decimal(amountOut).mul(plus).toFixed(0);
+  }
+
+  getDefaultSqrtPriceLimit(a2b: boolean) {
+    return a2b ? MIN_SQRT_PRICE : MAX_SQRT_PRICE;
   }
 
   sqrtPriceWithSlippage(
