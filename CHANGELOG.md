@@ -1,4 +1,13 @@
 
+
+# [3.2.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.2...3.2.0) (2025-02-27)
+
+
+### Features
+
+* partner swap ([1ad39f6](https://github.com/turbos-finance/turbos-clmm-sdk/commit/1ad39f643f64da3f10d1b4a2b8a1ea5d46c0e96f))
+* partner trade & upgrade mysten sui version ([2d0e13b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/2d0e13bab8863891015ca497f30aec6581c722bd))
+
 ## [3.1.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.2...3.1.3) (2025-02-27)
 
 ## [3.1.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.1...3.1.2) (2024-09-12)
