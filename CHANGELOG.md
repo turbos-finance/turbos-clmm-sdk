@@ -1,4 +1,5 @@
 
+## [3.1.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.2...3.1.3) (2025-02-27)
 
 ## [3.1.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.1...3.1.2) (2024-09-12)
 
