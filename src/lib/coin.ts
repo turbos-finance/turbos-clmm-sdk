@@ -66,9 +66,21 @@ export class Coin extends Base {
     coinType: string,
     amount: Decimal,
   ): TransactionObjectArgument[] {
-    return this.isSUI(coinType)
-      ? [txb.splitCoins(txb.gas, [txb.pure.u64(amount.toNumber())])[0]!]
-      : coinIds.map((id) => txb.object(id));
+    if (this.isSUI(coinType)) {
+      return [txb.splitCoins(txb.gas, [txb.pure.u64(amount.toNumber())])];
+    } else {
+      if (coinIds.length > 1) {
+        const [coin, ...mergeCoins] = coinIds;
+        const coinObject = txb.object(coin!);
+        txb.mergeCoins(
+          coinObject,
+          mergeCoins.map((coin) => txb.object(coin)),
+        );
+        return [txb.splitCoins(coinObject, [txb.pure.u64(amount.toNumber())])];
+      }
+
+      return [txb.splitCoins(coinIds[0]!, [txb.pure.u64(amount.toNumber())])];
+    }
   }
 
   zero(token: string, txb: Transaction): TransactionObjectArgument {
