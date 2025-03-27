@@ -1,5 +1,12 @@
 
 
+# [3.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.2.1...3.3.0) (2025-03-27)
+
+
+### Features
+
+* add and remove liquidity return coin and add coin object params ([206eec2](https://github.com/turbos-finance/turbos-clmm-sdk/commit/206eec2f8cc4f5da207f5a2b7607c012cd79ef0b))
+
 ## [3.2.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.2.0...3.2.1) (2025-03-03)
 
 # [3.2.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.1.2...3.2.0) (2025-02-27)
