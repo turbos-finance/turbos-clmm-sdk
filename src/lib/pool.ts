@@ -1,5 +1,9 @@
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import { Transaction } from '@mysten/sui/transactions';
+import {
+  // coinWithBalance,
+  Transaction,
+  type TransactionObjectArgument,
+} from '@mysten/sui/transactions';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { validateObjectResponse } from '../utils/validate-object-response';
@@ -47,13 +51,32 @@ export declare module Pool {
     sqrtPrice: string;
   }
 
-  export interface AddLiquidityOptions extends MintParams, LiquidityParams {}
+  export interface CoinObjectArguments {
+    coinAObjectArguments?: TransactionObjectArgument[];
+    coinBObjectArguments?: TransactionObjectArgument[];
+  }
 
-  export interface IncreaseLiquidityOptions extends MintParams {
+  export interface AddLiquidityOptions
+    extends MintParams,
+      LiquidityParams,
+      CoinObjectArguments {}
+
+  export interface AddLiquidityByAmountObjectOptions extends AddLiquidityOptions {
+    amountAObject?: TransactionObjectArgument;
+    amountBObject?: TransactionObjectArgument;
+  }
+
+  export interface IncreaseLiquidityOptions extends MintParams, CoinObjectArguments {
     /**
      * NFT ID
      */
     nft: string;
+  }
+
+  export interface IncreaseLiquidityByAmountObjectOptions
+    extends IncreaseLiquidityOptions {
+    amountAObject?: TransactionObjectArgument;
+    amountBObject?: TransactionObjectArgument;
   }
 
   export interface DecreaseLiquidityOptions extends MintParams {
@@ -281,7 +304,16 @@ export class Pool extends Base {
   }
 
   async addLiquidity(options: Pool.AddLiquidityOptions): Promise<Transaction> {
-    const { address, tickLower, tickUpper, slippage, pool } = options;
+    const {
+      address,
+      tickLower,
+      tickUpper,
+      slippage,
+      pool,
+      coinAObjectArguments,
+      coinBObjectArguments,
+    } = options;
+
     const contract = await this.contract.getConfig();
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
@@ -290,23 +322,44 @@ export class Pool extends Base {
       this.coin.getMetadata(coinTypeB),
     ]);
     if (!coinA || !coinB) throw new Error('Invalid coin type');
+    const txb = options.txb || new Transaction();
+
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
+
+    // txb.setSenderIfNotSet(address);
+    // const coinAObjects = coinAObjectArguments
+    //   ? coinAObjectArguments
+    //   : [
+    //       amountA.eq(0)
+    //         ? this.coin.zero(coinTypeA, txb)
+    //         : coinWithBalance({ type: coinTypeA, balance: Number(amountA.toString()) }),
+    //     ];
+
+    // const coinBObjects = coinBObjectArguments
+    //   ? coinBObjectArguments
+    //   : [
+    //       amountB.eq(0)
+    //         ? this.coin.zero(coinTypeA, txb)
+    //         : coinWithBalance({ type: coinTypeB, balance: Number(amountB.toString()) }),
+    //     ];
+
     const [coinIdsA, coinIdsB] = await Promise.all([
       this.coin.selectTradeCoins(address, coinTypeA, amountA),
       this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
-    const txb = options.txb || new Transaction();
+    const coinAObjects = coinAObjectArguments
+      ? coinAObjectArguments
+      : coinIdsA.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+      : [this.coin.zero(coinTypeA, txb)];
 
-    const coinAObjects =
-      coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
-    const coinBObjects =
-      coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+    const coinBObjects = coinBObjectArguments
+      ? coinBObjectArguments
+      : coinIdsB.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+      : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -348,28 +401,119 @@ export class Pool extends Base {
 
     return txb;
   }
+  async addLiquidityByAmountObject(
+    options: Pool.AddLiquidityByAmountObjectOptions,
+  ): Promise<Transaction> {
+    const {
+      address,
+      tickLower,
+      tickUpper,
+      slippage,
+      pool,
+      coinAObjectArguments,
+      coinBObjectArguments,
+      amountAObject,
+      amountBObject,
+    } = options;
 
-  async increaseLiquidity(options: Pool.IncreaseLiquidityOptions): Promise<Transaction> {
-    const { pool, slippage, address, nft } = options;
     const contract = await this.contract.getConfig();
-    const amountA = new Decimal(options.amountA);
-    const amountB = new Decimal(options.amountB);
     const typeArguments = await this.getPoolTypeArguments(pool);
     const [coinTypeA, coinTypeB] = typeArguments;
+    const [coinA, coinB] = await Promise.all([
+      this.coin.getMetadata(coinTypeA),
+      this.coin.getMetadata(coinTypeB),
+    ]);
+    if (!coinA || !coinB) throw new Error('Invalid coin type');
+    const txb = options.txb || new Transaction();
+
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
+
     const [coinIdsA, coinIdsB] = await Promise.all([
       this.coin.selectTradeCoins(address, coinTypeA, amountA),
       this.coin.selectTradeCoins(address, coinTypeB, amountB),
     ]);
 
+    const coinAObjects = coinAObjectArguments
+      ? coinAObjectArguments
+      : coinIdsA.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+      : [this.coin.zero(coinTypeA, txb)];
+
+    const coinBObjects = coinBObjectArguments
+      ? coinBObjectArguments
+      : coinIdsB.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+      : [this.coin.zero(coinTypeB, txb)];
+
+    txb.moveCall({
+      target: `${contract.PackageId}::position_manager::mint`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // positions
+        txb.object(contract.Positions),
+        // coins
+        txb.makeMoveVec({
+          elements: coinAObjects,
+        }),
+        txb.makeMoveVec({
+          elements: coinBObjects,
+        }),
+        // tick_lower_index
+        txb.pure.u32(Number(Math.abs(tickLower).toFixed(0))),
+        txb.pure.bool(tickLower < 0),
+        // tick_upper_index
+        txb.pure.u32(Number(Math.abs(tickUpper).toFixed(0))),
+        txb.pure.bool(tickUpper < 0),
+        // amount_desired
+        amountAObject || txb.pure.u64(amountA.toFixed(0)),
+        amountBObject || txb.pure.u64(amountB.toFixed(0)),
+        // amount_min
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
+        // recipient
+        txb.pure.address(address),
+        // deadline
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE)),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    return txb;
+  }
+
+  async increaseLiquidity(options: Pool.IncreaseLiquidityOptions): Promise<Transaction> {
+    const { pool, slippage, address, nft, coinAObjectArguments, coinBObjectArguments } =
+      options;
+    const contract = await this.contract.getConfig();
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
+    const typeArguments = await this.getPoolTypeArguments(pool);
+    const [coinTypeA, coinTypeB] = typeArguments;
+
     const txb = options.txb || new Transaction();
-    const coinAObjects =
-      coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
-    const coinBObjects =
-      coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+
+    const [coinIdsA, coinIdsB] = await Promise.all([
+      this.coin.selectTradeCoins(address, coinTypeA, amountA),
+      this.coin.selectTradeCoins(address, coinTypeB, amountB),
+    ]);
+
+    const coinAObjects = coinAObjectArguments
+      ? coinAObjectArguments
+      : coinIdsA.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+      : [this.coin.zero(coinTypeA, txb)];
+
+    const coinBObjects = coinBObjectArguments
+      ? coinBObjectArguments
+      : coinIdsB.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+      : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
@@ -391,6 +535,78 @@ export class Pool extends Base {
         // amount_desired
         txb.pure.u64(amountA.toFixed(0)),
         txb.pure.u64(amountB.toFixed(0)),
+        // amount_min
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
+        // deadline
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+    });
+    return txb;
+  }
+
+  async increaseLiquidityByAmountObject(
+    options: Pool.IncreaseLiquidityByAmountObjectOptions,
+  ): Promise<Transaction> {
+    const {
+      pool,
+      slippage,
+      address,
+      nft,
+      coinAObjectArguments,
+      coinBObjectArguments,
+      amountAObject,
+      amountBObject,
+    } = options;
+    const contract = await this.contract.getConfig();
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
+    const typeArguments = await this.getPoolTypeArguments(pool);
+    const [coinTypeA, coinTypeB] = typeArguments;
+
+    const txb = options.txb || new Transaction();
+
+    const [coinIdsA, coinIdsB] = await Promise.all([
+      this.coin.selectTradeCoins(address, coinTypeA, amountA),
+      this.coin.selectTradeCoins(address, coinTypeB, amountB),
+    ]);
+
+    const coinAObjects = coinAObjectArguments
+      ? coinAObjectArguments
+      : coinIdsA.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+      : [this.coin.zero(coinTypeA, txb)];
+
+    const coinBObjects = coinBObjectArguments
+      ? coinBObjectArguments
+      : coinIdsB.length > 0
+      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+      : [this.coin.zero(coinTypeB, txb)];
+
+    txb.moveCall({
+      target: `${contract.PackageId}::position_manager::increase_liquidity`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // positions
+        txb.object(contract.Positions),
+        // coins
+        txb.makeMoveVec({
+          elements: coinAObjects,
+        }),
+        txb.makeMoveVec({
+          elements: coinBObjects,
+        }),
+        // nft
+        txb.object(nft),
+        // amount_desired
+        amountAObject || txb.pure.u64(amountA.toFixed(0)),
+        amountBObject || txb.pure.u64(amountB.toFixed(0)),
         // amount_min
         txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
         txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
@@ -439,6 +655,53 @@ export class Pool extends Base {
     return txb;
   }
 
+  async decreaseLiquidityWithReturn(options: Pool.DecreaseLiquidityOptions): Promise<{
+    coinA?: TransactionObjectArgument;
+    coinB?: TransactionObjectArgument;
+    txb: Transaction;
+  }> {
+    const { slippage, nft, pool, decreaseLiquidity, address } = options;
+    const amountA = new Decimal(options.amountA);
+    const amountB = new Decimal(options.amountB);
+    const contract = await this.contract.getConfig();
+    const typeArguments = await this.getPoolTypeArguments(pool);
+
+    const txb = options.txb || new Transaction();
+    const [coinA, coinB] = txb.moveCall({
+      target: `${contract.PackageId}::position_manager::decrease_liquidity_with_return_`,
+      typeArguments: typeArguments,
+      arguments: [
+        // pool
+        txb.object(pool),
+        // positions
+        txb.object(contract.Positions),
+        // nft
+        txb.object(nft),
+        // liquidity
+        txb.pure.u128(new BN(decreaseLiquidity).toString()),
+        // amount_min
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountA, slippage)),
+        txb.pure.u64(this.getMinimumAmountBySlippage(amountB, slippage)),
+        // deadline
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        // versioned
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    if (options.txb) {
+      txb.transferObjects([coinA!, coinB!], address);
+    }
+
+    return {
+      coinA,
+      coinB,
+      txb,
+    };
+  }
+
   async removeLiquidity(options: Pool.RemoveLiquidityOptions): Promise<Transaction> {
     let txb = await this.decreaseLiquidity(options);
     txb = await this.collectFee({ txb, ...options });
@@ -446,6 +709,23 @@ export class Pool extends Base {
     txb = await this.nft.burn({ txb, nft: options.nft, pool: options.pool });
 
     return txb;
+  }
+
+  async removeLiquidityWithReturn(options: Pool.RemoveLiquidityOptions): Promise<{
+    coinA?: TransactionObjectArgument;
+    coinB?: TransactionObjectArgument;
+    txb: Transaction;
+  }> {
+    let { txb, coinA, coinB } = await this.decreaseLiquidityWithReturn(options);
+    txb = await this.collectFee({ txb, ...options });
+    txb = await this.collectReward({ txb, ...options });
+    txb = await this.nft.burn({ txb, nft: options.nft, pool: options.pool });
+
+    return {
+      txb,
+      coinA,
+      coinB,
+    };
   }
 
   async collectFee(options: Pool.CollectFeeOptions): Promise<Transaction> {
