@@ -63,8 +63,10 @@ export const collectRewardsQuote = (
     }
 
     // Calculate the reward growth outside of the position
-    const tickLowerRewardGrowthsOutsideX64 = tickLowerDetail.rewardGrowthsOutside[i]!;
-    const tickUpperRewardGrowthsOutsideX64 = tickUpperDetail.rewardGrowthsOutside[i]!;
+    const tickLowerRewardGrowthsOutsideX64 =
+      tickLowerDetail.rewardGrowthsOutside[i] || new BN(0);
+    const tickUpperRewardGrowthsOutsideX64 =
+      tickUpperDetail.rewardGrowthsOutside[i] || new BN(0);
 
     let rewardGrowthsBelowX64: BN = adjustedRewardGrowthGlobalX64;
     if (tickLowerDetail.initialized) {
