@@ -1058,7 +1058,7 @@ export class Vault extends Base {
       this.provider,
       address,
       {
-        Package: vaultContract.VaultOriginPackageId,
+        StructType: `${vaultContract.VaultOriginPackageId}::vault::Vault`,
       },
     );
 
