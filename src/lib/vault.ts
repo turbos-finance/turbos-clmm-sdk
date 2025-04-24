@@ -1062,6 +1062,10 @@ export class Vault extends Base {
       },
     );
 
+    if (objects.length === 0) {
+      return [];
+    }
+
     const strategyIds = objects.map((item) => item.strategy_id);
     const strategyObjects = await multiGetObjects(
       this.provider,
