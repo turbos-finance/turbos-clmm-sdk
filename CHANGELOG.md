@@ -1,5 +1,12 @@
 
 
+## [3.3.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.0...3.3.1) (2025-04-24)
+
+
+### Bug Fixes
+
+* handle empty objects case in Vault class ([77b362e](https://github.com/turbos-finance/turbos-clmm-sdk/commit/77b362e3190698a27d79db0b0eadc2db14669e37))
+
 # [3.3.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.2.1...3.3.0) (2025-03-27)
 
 
