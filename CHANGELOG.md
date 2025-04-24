@@ -1,5 +1,12 @@
 
 
+## [3.3.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.1...3.3.2) (2025-04-24)
+
+
+### Bug Fixes
+
+* update VaultOriginPackageId to StructType in Vault class ([4038242](https://github.com/turbos-finance/turbos-clmm-sdk/commit/40382425842bbccf7c40a9d41df225badc9955cb))
+
 ## [3.3.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.0...3.3.1) (2025-04-24)
 
 
