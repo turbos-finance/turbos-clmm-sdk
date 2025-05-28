@@ -42,3 +42,95 @@ test('minimum amount by slippage', () => {
 test.each([-35, -1, 100, 101, 200])('invalid slippage', (slippage) => {
   expect(() => sdk.pool['getMinimumAmountBySlippage'](10, slippage)).toThrowError();
 });
+
+describe('estimate amounts', () => {
+  test('in range by amountA', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(0.5, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(2, 9, 6);
+    const amountA = '1_000_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountA,
+      isAmountA: true,
+    });
+    expect(amounts).toStrictEqual(['1000000000', '1000120']);
+  });
+
+  test('in range by amountB', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(0.5, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(2, 9, 6);
+    const amountB = '10_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountB,
+      isAmountA: false,
+    });
+    expect(amounts).toStrictEqual(['9998800816', '10000000']);
+  });
+
+  test('out of range <= tickLower by amountA', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(1.2, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(2.3, 9, 6);
+    const amountA = '1_000_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountA,
+      isAmountA: true,
+    });
+    expect(amounts).toStrictEqual(['1000000000', '0']);
+  });
+
+  test('out of range <= tickLower by amountB', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(1.2, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(2.3, 9, 6);
+    const amountB = '10_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountB,
+      isAmountA: false,
+    });
+    expect(amounts).toStrictEqual(['0', '0']);
+  });
+
+  test('out of range >= tickUpper by amountA', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(0.3, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(0.5, 9, 6);
+    const amountA = '1_000_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountA,
+      isAmountA: true,
+    });
+    expect(amounts).toStrictEqual(['0', '0']);
+  });
+
+  test('out of range >= tickUpper by amountB', () => {
+    const sqrtPrice = sdk.math.priceToSqrtPriceX64(1, 9, 6);
+    const tickLower = sdk.math.priceToTickIndex(0.3, 9, 6);
+    const tickUpper = sdk.math.priceToTickIndex(0.5, 9, 6);
+    const amountB = '10_000_000';
+    const amounts = sdk.pool.estimateAmountsFromOneAmount({
+      sqrtPrice: sqrtPrice.toString(),
+      tickLower,
+      tickUpper,
+      amount: amountB,
+      isAmountA: false,
+    });
+    expect(amounts).toStrictEqual(['0', '10000000']);
+  });
+});
