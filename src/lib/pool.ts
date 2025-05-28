@@ -303,6 +303,37 @@ export class Pool extends Base {
     return txb;
   }
 
+  estimateAmountsFromOneAmount(options: {
+    sqrtPrice: string;
+    tickLower: number;
+    tickUpper: number;
+    amount: string;
+    isAmountA: boolean;
+  }): [string, string] {
+    const fixedAmount = new Decimal(options.amount).floor();
+    const initialAmounts = this.getTokenAmountsFromLiquidity({
+      liquidity: new BN(100_000_000),
+      currentSqrtPrice: new BN(options.sqrtPrice),
+      lowerSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.tickLower),
+      upperSqrtPrice: this.math.tickIndexToSqrtPriceX64(options.tickUpper),
+    });
+
+    if (initialAmounts[0].isZero()) {
+      return options.isAmountA ? ['0', '0'] : ['0', fixedAmount.toString()];
+    }
+
+    if (initialAmounts[1].isZero()) {
+      return options.isAmountA ? [fixedAmount.toString(), '0'] : ['0', '0'];
+    }
+
+    const ratio = new Decimal(initialAmounts[0].toString()).div(
+      initialAmounts[1].toString(),
+    );
+    return options.isAmountA
+      ? [fixedAmount.toString(), fixedAmount.div(ratio).toFixed(0)]
+      : [fixedAmount.mul(ratio).toFixed(0), fixedAmount.toString()];
+  }
+
   async addLiquidity(options: Pool.AddLiquidityOptions): Promise<Transaction> {
     const {
       address,
