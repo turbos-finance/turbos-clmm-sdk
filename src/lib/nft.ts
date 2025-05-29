@@ -385,10 +385,13 @@ export class NFT extends Base {
     };
   }
 
-  protected async getUnclaimedFees(options: {
+  async getUnclaimedFees(options: {
     pool: Pool.Pool;
     position: NFT.PositionField;
-    getPrice(coinType: string): Promise<string | number | undefined>;
+    /**
+     * Returning field `unclaimedFees` is based on price
+     */
+    getPrice?(coinType: string): Promise<string | number | undefined>;
     tickLowerDetail: NFT.PositionTick;
     tickUpperDetail: NFT.PositionTick;
   }) {
@@ -396,8 +399,8 @@ export class NFT extends Base {
     const [coinA, coinB, priceA, priceB] = await Promise.all([
       this.coin.getMetadata(pool.types[0]),
       this.coin.getMetadata(pool.types[1]),
-      getPrice(pool.types[0]),
-      getPrice(pool.types[1]),
+      getPrice?.(pool.types[0]),
+      getPrice?.(pool.types[1]),
     ]);
     const collectFees = collectFeesQuote(this.math, {
       pool,
@@ -435,10 +438,13 @@ export class NFT extends Base {
     };
   }
 
-  protected async getUnclaimedRewards(options: {
+  async getUnclaimedRewards(options: {
     pool: Pool.Pool;
     position: NFT.PositionField;
-    getPrice(coinType: string): Promise<string | number | undefined>;
+    /**
+     * Returning field `unclaimedRewards` is based on price
+     */
+    getPrice?(coinType: string): Promise<string | number | undefined>;
     tickLowerDetail: NFT.PositionTick;
     tickUpperDetail: NFT.PositionTick;
   }) {
@@ -461,7 +467,7 @@ export class NFT extends Base {
     ]);
     const prices = await Promise.all(
       pool.reward_infos.map((_, index) => {
-        return getPrice(coinTypes[index]!);
+        return getPrice?.(coinTypes[index]!);
       }),
     );
     coins.forEach((coin, index) => {
