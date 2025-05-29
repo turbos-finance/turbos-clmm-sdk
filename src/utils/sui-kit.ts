@@ -5,35 +5,26 @@ import {
   type PaginatedObjectsResponse,
   type SuiObjectDataFilter,
 } from '@mysten/sui/client';
-import { unstable_getObjectFields } from '..';
+import { getObjectFields } from '../lib/legacy';
 
 export const multiGetObjects = async (
   provider: SuiClient,
   ids: string[],
   options?: SuiObjectDataOptions,
 ): Promise<SuiObjectResponse[]> => {
-  const max = 50;
-  const len = ids.length;
-  if (len > max) {
-    const requests = [];
-    let i = 0;
-    const times = Math.ceil(len / max);
-    for (i; i < times; i++) {
-      requests.push(
-        provider.multiGetObjects({
-          ids: ids.slice(i * max, (i + 1) * max),
-          options,
-        }),
-      );
-    }
-    const response = await Promise.all(requests);
-    return response.flat();
+  const step = 50;
+  ids = [...new Set(ids)];
+  const objects: SuiObjectResponse[] = [];
+
+  for (let i = 0; i < ids.length; i += step) {
+    const result = await provider.multiGetObjects({
+      ids: ids.slice(i, i + step),
+      options,
+    });
+    objects.push(...result);
   }
 
-  return await provider.multiGetObjects({
-    ids,
-    options,
-  });
+  return objects;
 };
 
 export async function forEacGetOwnedObjects<T>(
@@ -53,7 +44,7 @@ export async function forEacGetOwnedObjects<T>(
     if (dynamicFields) {
       data = [
         ...data,
-        ...(dynamicFields.data.map((item) => unstable_getObjectFields(item)) as T[]),
+        ...(dynamicFields.data.map((item) => getObjectFields(item)) as T[]),
       ];
     }
   } while (dynamicFields.hasNextPage);
