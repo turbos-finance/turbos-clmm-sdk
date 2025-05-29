@@ -179,7 +179,6 @@ export class Pool extends Base {
       poolFactories = await this.provider.getDynamicFields({
         parentId: contract.PoolTableId,
         cursor: poolFactories?.nextCursor,
-        limit: 15,
       });
       poolFactoryIds.push(...poolFactories.data.map((factory) => factory.objectId));
     } while (poolFactories.hasNextPage);
