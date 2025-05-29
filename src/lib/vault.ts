@@ -9,8 +9,7 @@ import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 import { ONE_MINUTE } from './trade';
 import { bcs } from '@mysten/sui/bcs';
 import { SuiObjectResponse } from '@mysten/sui/client';
-import { NFT } from './nft';
-import { unstable_getObjectFields } from '..';
+import { Position } from './position';
 import { forEacGetOwnedObjects, multiGetObjects } from '../utils/sui-kit';
 import { isNullObjectId } from '../utils/is-null-object-id';
 
@@ -262,7 +261,7 @@ export declare module Vault {
     };
   }
 
-  export interface TurbosMyVaultPosition extends NFT.PositionField {
+  export interface TurbosMyVaultPosition extends Position.PositionField {
     tickLower: number;
     tickUpper: number;
     objectId: string;
@@ -1079,9 +1078,7 @@ export class Vault extends Base {
       { vaultId: string; clmm_pool_id: string; accountsId: string }
     > = {};
     strategyObjects.forEach((item) => {
-      const fields = unstable_getObjectFields(
-        item,
-      ) as unknown as Vault.VaultStrategyField;
+      const fields = getObjectFields(item) as unknown as Vault.VaultStrategyField;
       obj[fields.id.id] = {
         vaultId: fields.vaults.fields.id.id,
         clmm_pool_id: fields.clmm_pool_id,
@@ -1112,12 +1109,12 @@ export class Vault extends Base {
 
     const myVaults: Vault.TurbosMyVault[] = objects.map((item) => {
       const res = vaultObjects.find((vault) => {
-        const fields = unstable_getObjectFields(
+        const fields = getObjectFields(
           vault,
         ) as unknown as Vault.VaultsIdMyStrategyVaultField;
         return fields.name === item.id.id;
       })!;
-      const fieldObject = unstable_getObjectFields(
+      const fieldObject = getObjectFields(
         res,
       ) as unknown as Vault.VaultsIdMyStrategyVaultField;
       const field = fieldObject.value.fields.value.fields;
@@ -1162,7 +1159,7 @@ export class Vault extends Base {
     );
 
     positionObjects.forEach((position) => {
-      const fields = unstable_getObjectFields(position) as unknown as NFT.PositionField;
+      const fields = getObjectFields(position) as unknown as Position.PositionField;
       const myVaultPosition = {
         ...fields,
         tickLower: this.math.bitsToNumber(fields.tick_lower_index.fields.bits),

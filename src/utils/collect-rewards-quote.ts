@@ -1,4 +1,4 @@
-import type { MathUtil, NFT, Pool } from '../lib';
+import type { MathUtil, Pool, Position } from '../lib';
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
 import { bitMath } from './bit-math';
@@ -15,9 +15,9 @@ export const collectRewardsQuote = (
       | 'liquidity'
       | 'id'
     >;
-    position: NFT.PositionField;
-    tickLowerDetail: NFT.PositionTick;
-    tickUpperDetail: NFT.PositionTick;
+    position: Position.PositionField;
+    tickLowerDetail: Position.PositionTick;
+    tickUpperDetail: Position.PositionTick;
     timeStampInSeconds?: BN;
   },
 ) => {

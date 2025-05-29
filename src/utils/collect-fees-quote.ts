@@ -1,4 +1,4 @@
-import type { MathUtil, NFT, Pool } from '../lib';
+import type { MathUtil, Pool, Position } from '../lib';
 import BN from 'bn.js';
 
 export const collectFeesQuote = (
@@ -8,9 +8,9 @@ export const collectFeesQuote = (
       Pool.Pool,
       'fee_growth_global_a' | 'fee_growth_global_b' | 'tick_current_index'
     >;
-    position: NFT.PositionField;
-    tickLowerDetail: NFT.PositionTick;
-    tickUpperDetail: NFT.PositionTick;
+    position: Position.PositionField;
+    tickLowerDetail: Position.PositionTick;
+    tickUpperDetail: Position.PositionTick;
   },
 ) => {
   const { pool, position, tickLowerDetail, tickUpperDetail } = options;

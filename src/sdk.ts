@@ -1,6 +1,16 @@
 import { SuiClient, SuiClientOptions, getFullnodeUrl } from '@mysten/sui/client';
 import { Network } from './constants';
-import { Pool, Contract, MathUtil, Account, NFT, Coin, Trade, Vault } from './lib';
+import {
+  Pool,
+  Contract,
+  MathUtil,
+  Account,
+  NFT,
+  Coin,
+  Trade,
+  Vault,
+  Position,
+} from './lib';
 
 export class TurbosSdk {
   readonly pool: Pool;
@@ -8,7 +18,11 @@ export class TurbosSdk {
   readonly math = new MathUtil();
   readonly account = new Account();
   readonly coin: Coin;
+  /**
+   * @deprecated use sdk.position instead
+   */
   readonly nft: NFT;
+  readonly position: Position;
   readonly trade: Trade;
   readonly provider: SuiClient;
   readonly vault: Vault;
@@ -28,6 +42,7 @@ export class TurbosSdk {
     this.contract = new Contract(this);
     this.pool = new Pool(this);
     this.nft = new NFT(this);
+    this.position = new Position(this);
     this.coin = new Coin(this);
     this.trade = new Trade(this);
     this.vault = new Vault(this);
