@@ -45,8 +45,15 @@ export class Base {
     return this.sdk.contract;
   }
 
+  /**
+   * @deprecated use position instead
+   */
   protected get nft() {
     return this.sdk.nft;
+  }
+
+  protected get position() {
+    return this.sdk.position;
   }
 
   protected get coin() {

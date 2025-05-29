@@ -9,7 +9,10 @@ import { collectFeesQuote } from '../utils/collect-fees-quote';
 import { collectRewardsQuote } from '../utils/collect-rewards-quote';
 import type { Pool } from './pool';
 
-export declare module NFT {
+/**
+ * @deprecated use Position instead
+ */
+export declare namespace NFT {
   export interface NftField {
     description: string;
     id: { id: string };
@@ -80,8 +83,39 @@ export declare module NFT {
     nft: string;
     txb?: Transaction;
   }
+
+  export interface UnclaimedFeesAndRewardsResult {
+    fees: string;
+    rewards: string;
+    total: string;
+    fields: {
+      collectRewards: [string, string, string];
+      scaledCollectRewards: [string, string, string];
+      feeOwedA: string;
+      feeOwedB: string;
+      scaledFeeOwedA: string;
+      scaledFeeOwedB: string;
+    };
+  }
+
+  export interface UnclaimedFeesResult {
+    feeOwedA: string;
+    feeOwedB: string;
+    unclaimedFees: Decimal;
+    scaledFeeOwedA: string;
+    scaledFeeOwedB: string;
+  }
+
+  export interface UnclaimedRewardsResult {
+    unclaimedRewards: Decimal;
+    collectRewards: [string, string, string];
+    scaledCollectRewards: [string, string, string];
+  }
 }
 
+/**
+ * @deprecated use Position instead
+ */
 export class NFT extends Base {
   async getOwner(nftId: string) {
     const result = await this.getObject(nftId);
@@ -353,7 +387,7 @@ export class NFT extends Base {
     poolId: string;
     position: NFT.PositionField;
     getPrice(coinType: string): Promise<string | number | undefined>;
-  }) {
+  }): Promise<NFT.UnclaimedFeesAndRewardsResult> {
     const { position, poolId } = options;
     const [pool, tickLowerDetail, tickUpperDetail] = await Promise.all([
       this.pool.getPool(poolId),
@@ -394,7 +428,7 @@ export class NFT extends Base {
     getPrice?(coinType: string): Promise<string | number | undefined>;
     tickLowerDetail: NFT.PositionTick;
     tickUpperDetail: NFT.PositionTick;
-  }) {
+  }): Promise<NFT.UnclaimedFeesResult> {
     const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
     const [coinA, coinB, priceA, priceB] = await Promise.all([
       this.coin.getMetadata(pool.types[0]),
@@ -447,7 +481,7 @@ export class NFT extends Base {
     getPrice?(coinType: string): Promise<string | number | undefined>;
     tickLowerDetail: NFT.PositionTick;
     tickUpperDetail: NFT.PositionTick;
-  }) {
+  }): Promise<NFT.UnclaimedRewardsResult> {
     const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
 
     const collectRewards = collectRewardsQuote(this.math, {
