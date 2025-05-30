@@ -821,7 +821,7 @@ export class Pool extends Base {
             txb.object(nft),
             txb.object(rewardInfo.fields.vault),
             txb.pure.u64(index),
-            txb.pure.u64(Number(rewardAmounts[index])),
+            txb.pure.u64(rewardAmounts[index]!),
             txb.pure.address(address),
             txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
             txb.object(SUI_CLOCK_OBJECT_ID),
