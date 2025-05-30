@@ -1,5 +1,20 @@
 
 
+# [3.4.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.2...3.4.0) (2025-05-30)
+
+
+### Bug Fixes
+
+* **nft:** make getPrice parameter optional in getUnclaimedFees and getUnclaimedRewards methods ([224ac12](https://github.com/turbos-finance/turbos-clmm-sdk/commit/224ac12e6a9f606e3874ed0a26364da5bfddae67))
+* **pool:** remove limit parameter from getDynamicFields in getPools method ([2b15f62](https://github.com/turbos-finance/turbos-clmm-sdk/commit/2b15f62d8f1e070b11e4742c40fa1fe9faf4defd))
+
+
+### Features
+
+* add estimateAmountsFromOneAmount method based on price range ([a6bbf2a](https://github.com/turbos-finance/turbos-clmm-sdk/commit/a6bbf2a20f413f43cbd9996fcef59bf7d4bef408))
+* add fee retrieval and initializable tick index methods in Contract and MathUtil classes ([483f63b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/483f63b11594a113ba1d3591b6b69058df266da4))
+* create Position class to replace NFT which is deprecated ([d4758c0](https://github.com/turbos-finance/turbos-clmm-sdk/commit/d4758c089ea087c59d8075e7c725c40b71c2e549))
+
 ## [3.3.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.1...3.3.2) (2025-04-24)
 
 
