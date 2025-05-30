@@ -98,6 +98,30 @@ export class MathUtil {
     }
   }
 
+  priceToInitializableTickIndex(
+    price: Decimal.Value,
+    decimalsA: number,
+    decimalsB: number,
+    tickSpacing: number,
+  ): number {
+    return this.getInitializableTickIndex(
+      this.priceToTickIndex(price, decimalsA, decimalsB),
+      tickSpacing,
+    );
+  }
+
+  getNextInitializableTickIndex(tickIndex: number, tickSpacing: number) {
+    return this.getInitializableTickIndex(tickIndex, tickSpacing) + tickSpacing;
+  }
+
+  getPrevInitializableTickIndex(tickIndex: number, tickSpacing: number) {
+    return this.getInitializableTickIndex(tickIndex, tickSpacing) - tickSpacing;
+  }
+
+  getInitializableTickIndex(tickIndex: number, tickSpacing: number): number {
+    return tickIndex - (tickIndex % tickSpacing);
+  }
+
   public tickIndexToPrice(
     tickIndex: number,
     decimalsA: number,

@@ -55,6 +55,11 @@ export class Contract extends Base {
     });
   }
 
+  async getFee(tickSpacing: number): Promise<Contract.Fee> {
+    const fees = await this.getFees();
+    return fees.find((fee) => fee.tickSpacing === tickSpacing)!;
+  }
+
   private fetchJSON() {
     return this.getCacheOrSet('contract-json', async () => {
       const response = await fetch(
