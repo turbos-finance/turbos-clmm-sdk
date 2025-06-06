@@ -932,6 +932,83 @@ export class Pool extends Base {
     };
   }
 
+  async fetchTicks(poolId: string) {
+    const typeArguments = await this.getPoolTypeArguments(poolId);
+    const contract = await this.contract.getConfig();
+    const ticks: {
+      id: string;
+      tick_index: number;
+      liquidity_gross: string;
+      liquidity_net: string;
+      fee_growth_outside_a: string;
+      fee_growth_outside_b: string;
+      reward_growths_outside: [string, string, string];
+      initialized: boolean;
+    }[] = [];
+
+    let start: number[] = [];
+    const limit = 1000;
+    while (true) {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${contract.PackageId}::pool_fetcher::fetch_ticks`,
+        typeArguments: typeArguments,
+        arguments: [
+          tx.object(poolId),
+          tx.pure.vector('u32', start.map(Math.abs)),
+          tx.pure.bool(start[0] === undefined ? true : start[0] < 0),
+          tx.pure.u64(limit),
+          tx.object(contract.Versioned),
+        ],
+      });
+
+      const result = await this.provider.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      });
+
+      if (result.error) {
+        throw new Error(`Get pool ${poolId} ticks with error: ${result.error}`);
+      }
+
+      const eventData = result.events[0]!.parsedJson as {
+        ticks: {
+          id: string;
+          tick_index: { bits: number };
+          liquidity_gross: string;
+          liquidity_net: { bits: string };
+          fee_growth_outside_a: string;
+          fee_growth_outside_b: string;
+          reward_growths_outside: [string, string, string];
+          initialized: boolean;
+        }[];
+        next_cursor: null | {
+          type: string;
+          fields: { bits: number };
+        };
+      };
+
+      for (const tick of eventData.ticks) {
+        ticks.push({
+          id: tick.id,
+          tick_index: this.math.bitsToNumber(tick.tick_index.bits),
+          initialized: tick.initialized,
+          liquidity_net: this.math.bitsToNumber(tick.liquidity_net.bits, 128).toString(),
+          liquidity_gross: tick.liquidity_gross,
+          fee_growth_outside_a: tick.fee_growth_outside_a,
+          fee_growth_outside_b: tick.fee_growth_outside_b,
+          reward_growths_outside: tick.reward_growths_outside,
+        });
+      }
+
+      if (!eventData.next_cursor) break;
+      start = [this.math.bitsToNumber(eventData.next_cursor.fields.bits)];
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    return ticks;
+  }
+
   protected parsePool(pool: SuiObjectResponse): Pool.Pool {
     const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
     const objectId = getObjectId(pool);
