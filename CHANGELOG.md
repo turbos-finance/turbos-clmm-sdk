@@ -1,5 +1,12 @@
 
 
+## [3.5.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.5.0...3.5.1) (2025-06-07)
+
+
+### Bug Fixes
+
+* **pool:** adjust limit to 900 to prevent MEMORY_LIMIT_EXCEEDED error ([19bae39](https://github.com/turbos-finance/turbos-clmm-sdk/commit/19bae395abfc34c50ad64613de077d4183dcbe43))
+
 # [3.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.4.0...3.5.0) (2025-06-07)
 
 
