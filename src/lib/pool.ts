@@ -947,7 +947,8 @@ export class Pool extends Base {
     }[] = [];
 
     let start: number[] = [];
-    const limit = 1000;
+    // Warning: limit should less than 999 to against MEMORY_LIMIT_EXCEEDED error.
+    const limit = 900;
     while (true) {
       const tx = new Transaction();
       tx.moveCall({
