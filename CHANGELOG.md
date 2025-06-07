@@ -1,5 +1,12 @@
 
 
+# [3.5.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.4.0...3.5.0) (2025-06-07)
+
+
+### Features
+
+* **pool:** implement fetchTicks method to retrieve tick data for a given pool ([99ba4aa](https://github.com/turbos-finance/turbos-clmm-sdk/commit/99ba4aa1e7b2cddb26e2287973cb3c7cd5876fee))
+
 # [3.4.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.3.2...3.4.0) (2025-05-30)
 
 
