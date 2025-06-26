@@ -188,8 +188,9 @@ export class NFT extends Base {
     tickUpper: number;
     fees24h: string | number;
     getPrice(coinType: string): Promise<string | number | undefined>;
+    liquidity?: string;
   }): Promise<{ fees: string; total: string; rewards: string }> {
-    const { poolId, getPrice, fees24h, tickLower, tickUpper } = opts;
+    const { poolId, getPrice, fees24h, tickLower, tickUpper, liquidity } = opts;
     const pool = await this.pool.getPool(poolId);
     const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.fields.bits);
     const [coinA, coinB, priceA, priceB] = await Promise.all([
@@ -210,7 +211,10 @@ export class NFT extends Base {
     }
 
     const { minTokenA, minTokenB } = this.getRemoveLiquidityQuote(
-      pool,
+      {
+        ...pool,
+        liquidity: liquidity || pool.liquidity,
+      },
       tickLower,
       tickUpper,
     );
