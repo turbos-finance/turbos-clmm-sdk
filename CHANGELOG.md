@@ -1,5 +1,12 @@
 
 
+# [3.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.5.1...3.6.0) (2025-06-27)
+
+
+### Features
+
+* **nft:** add optional liquidity parameter to getUnclaimedFees method ([c1c35ce](https://github.com/turbos-finance/turbos-clmm-sdk/commit/c1c35ce1f8b4485cabd7469a0e3012404bccc1fa))
+
 ## [3.5.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.5.0...3.5.1) (2025-06-07)
 
 
