@@ -1,5 +1,12 @@
 
 
+## [3.6.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.1...3.6.2) (2025-07-15)
+
+
+### Bug Fixes
+
+* **coin:** update SUI coin type comparison to use normalizeStructTag ([93ce8fc](https://github.com/turbos-finance/turbos-clmm-sdk/commit/93ce8fcdcea94c6a335b6fc759427e17fa1856b8))
+
 ## [3.6.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.0...3.6.1) (2025-07-15)
 
 
