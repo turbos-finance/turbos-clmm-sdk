@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
+import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { Base } from './base';
 import Decimal from 'decimal.js';
 import { Pool } from './pool';
@@ -557,7 +557,7 @@ export class Trade extends Base {
     const functionName: string[] = ['swap'];
     if (pools.length === 1) {
       typeArguments = pools[0]!;
-      if (coinTypeA === typeArguments[0]) {
+      if (normalizeStructTag(coinTypeA) === normalizeStructTag(typeArguments[0]!)) {
         functionName.push('a', 'b');
       } else {
         functionName.push('b', 'a');
@@ -565,7 +565,7 @@ export class Trade extends Base {
     } else {
       const pool1Args = pools[0]!;
       const pool2Args = pools[1]!;
-      if (coinTypeA === pool1Args[0]) {
+      if (normalizeStructTag(coinTypeA) === normalizeStructTag(pool1Args[0])) {
         functionName.push('a', 'b');
         typeArguments.push(pool1Args[0], pool1Args[2], pool1Args[1]);
       } else {
@@ -574,7 +574,7 @@ export class Trade extends Base {
       }
 
       typeArguments.push(pool2Args[2], coinTypeB);
-      if (coinTypeB === pool2Args[0]) {
+      if (normalizeStructTag(coinTypeB) === normalizeStructTag(pool2Args[0])) {
         functionName.push('c', 'b');
       } else {
         functionName.push('b', 'c');
