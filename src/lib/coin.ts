@@ -2,13 +2,13 @@ import { type TransactionObjectArgument, Transaction } from '@mysten/sui/transac
 import { PaginatedCoins } from '@mysten/sui/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { normalizeStructTag } from '@mysten/sui/utils';
 
 export class Coin extends Base {
   isSUI(coinType: string) {
     return (
-      normalizeSuiAddress(coinType) ===
-      '0x000000000000000000000000000000000000000000000000000002::sui::sui'
+      normalizeStructTag(coinType) ===
+      '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
     );
   }
 
@@ -27,7 +27,7 @@ export class Coin extends Base {
     coinType: string,
     expectedAmount: Decimal,
   ): Promise<string[]> {
-    if (expectedAmount.eq(0)) {
+    if (expectedAmount.eq(0) || this.isSUI(coinType)) {
       return [];
     }
 
