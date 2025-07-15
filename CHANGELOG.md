@@ -1,5 +1,12 @@
 
 
+## [3.6.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.0...3.6.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* **trade:** normalize struct tags for coin type comparisons in swap logic ([be6f83b](https://github.com/turbos-finance/turbos-clmm-sdk/commit/be6f83bb653bb7c3fa0e4cc659c724754fbf21c3))
+
 # [3.6.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.5.1...3.6.0) (2025-06-27)
 
 
