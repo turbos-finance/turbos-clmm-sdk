@@ -1,5 +1,12 @@
 
 
+## [3.6.3](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.2...3.6.3) (2025-07-18)
+
+
+### Bug Fixes
+
+* **coin:** remove unnecessary SUI coin type check in expected amount validation ([68fa0c4](https://github.com/turbos-finance/turbos-clmm-sdk/commit/68fa0c42101ddda7b790e95be04b9bfb0f8d4a11))
+
 ## [3.6.2](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.1...3.6.2) (2025-07-15)
 
 
