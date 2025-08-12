@@ -25,6 +25,7 @@ export declare module Contract {
     VaultGlobalConfig: string;
     VaultRewarderManager: string;
     VaultUserTierConfig: string;
+    AclConfig: string;
   }
 }
 

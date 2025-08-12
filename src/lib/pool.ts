@@ -1010,7 +1010,7 @@ export class Pool extends Base {
     return ticks;
   }
 
-  protected parsePool(pool: SuiObjectResponse): Pool.Pool {
+  parsePool(pool: SuiObjectResponse): Pool.Pool {
     const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
     const objectId = getObjectId(pool);
     const type = getObjectType(pool)!;
