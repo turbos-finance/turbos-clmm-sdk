@@ -259,6 +259,128 @@ export class NFT extends Base {
     };
   }
 
+  calculatePositionAPR(opts: {
+    liquidity: string;
+    tickCurrent: number;
+    tickLower: number;
+    tickUpper: number;
+    fees24h: string | number;
+    decimalsA: number;
+    decimalsB: number;
+    priceA: number | string;
+    priceB: number | string;
+    rewardInfos: [string, string, string];
+    rewardInfosDecimals: [number, number, number];
+    rewardInfosPrices: [number, number, number];
+  }): { fees: string; total: string; rewards: string } {
+    const {
+      decimalsA,
+      decimalsB,
+      tickCurrent,
+      fees24h,
+      tickLower,
+      tickUpper,
+      liquidity,
+      priceA,
+      priceB,
+      rewardInfos,
+      rewardInfosPrices,
+      rewardInfosDecimals,
+    } = opts;
+
+    if (
+      !priceA ||
+      !priceB ||
+      tickLower >= tickUpper ||
+      tickCurrent < tickLower ||
+      tickCurrent >= tickUpper
+    ) {
+      return { fees: '0', rewards: '0', total: '0' };
+    }
+
+    const { minTokenA, minTokenB } = this.calculateRemoveLiquidityQuote(
+      new BN(liquidity),
+      tickCurrent,
+      tickLower,
+      tickUpper,
+    );
+    const tokenValueA = new Decimal(
+      this.math.scaleDown(minTokenA.toString(), decimalsA),
+    ).mul(priceA);
+    const tokenValueB = new Decimal(
+      this.math.scaleDown(minTokenB.toString(), decimalsB),
+    ).mul(priceB);
+    const concentratedValue = tokenValueA.add(tokenValueB);
+
+    const feeApr = concentratedValue.isZero()
+      ? new Decimal(0)
+      : new Decimal(fees24h).mul(365).div(concentratedValue).mul(100);
+    let totalRewardApr = new Decimal(0);
+
+    rewardInfos.map(async (reward, index) => {
+      const emissions_per_second = reward;
+      totalRewardApr = totalRewardApr.add(
+        new Decimal(new BN(emissions_per_second).shrn(64).toString())
+          .div(10 ** rewardInfosDecimals[index]!)
+          .mul(31_536_000 /* seconds per year */)
+          .mul(rewardInfosPrices[index]!)
+          .div(concentratedValue)
+          .mul(100),
+      );
+    });
+
+    return {
+      fees: feeApr.toString(),
+      rewards: totalRewardApr.toString(),
+      total: feeApr.plus(totalRewardApr).toString(),
+    };
+  }
+
+  protected calculateRemoveLiquidityQuote(
+    liquidity: BN,
+    tickCurrent: number,
+    tickLower: number,
+    tickUpper: number,
+  ): { minTokenA: BN; minTokenB: BN } {
+    const ZERO = new BN(0);
+    const sqrtPriceLowerX64 = this.math.tickIndexToSqrtPriceX64(tickLower);
+    const sqrtPriceUpperX64 = this.math.tickIndexToSqrtPriceX64(tickUpper);
+
+    if (tickCurrent < tickLower) {
+      const estTokenA = this.getTokenAFromLiquidity(
+        liquidity,
+        sqrtPriceLowerX64,
+        sqrtPriceUpperX64,
+      );
+      return { minTokenA: this.adjustForSlippage(estTokenA), minTokenB: ZERO };
+    }
+
+    if (tickCurrent < tickUpper) {
+      const sqrtPriceX64 = this.math.tickIndexToSqrtPriceX64(tickCurrent);
+      const estTokenA = this.getTokenAFromLiquidity(
+        liquidity,
+        sqrtPriceX64,
+        sqrtPriceUpperX64,
+      );
+      const estTokenB = this.getTokenBFromLiquidity(
+        liquidity,
+        sqrtPriceLowerX64,
+        sqrtPriceX64,
+      );
+      return {
+        minTokenA: this.adjustForSlippage(estTokenA),
+        minTokenB: this.adjustForSlippage(estTokenB),
+      };
+    }
+
+    const estTokenB = this.getTokenBFromLiquidity(
+      liquidity,
+      sqrtPriceLowerX64,
+      sqrtPriceUpperX64,
+    );
+    return { minTokenA: ZERO, minTokenB: this.adjustForSlippage(estTokenB) };
+  }
+
   protected getRemoveLiquidityQuote(
     pool: Pool.PoolFields,
     tickLower: number,

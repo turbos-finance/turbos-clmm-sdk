@@ -27,7 +27,7 @@ export class Coin extends Base {
     coinType: string,
     expectedAmount: Decimal,
   ): Promise<string[]> {
-    if (expectedAmount.eq(0) || this.isSUI(coinType)) {
+    if (expectedAmount.eq(0)) {
       return [];
     }
 

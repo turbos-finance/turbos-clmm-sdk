@@ -102,6 +102,10 @@ export declare module Pool {
     collectAmountB: string | number;
   }
 
+  export interface CollectFeeByTypeArgumentsOptions extends CollectFeeOptions {
+    typeArguments: Pool.Types;
+  }
+
   export interface CollectRewardOptions
     extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
     /**
@@ -109,6 +113,21 @@ export declare module Pool {
      */
     nft: string;
     rewardAmounts: (string | number)[];
+  }
+
+  export interface CollectRewardByTypeArgumentsOptions
+    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
+    /**
+     * NFT ID
+     */
+    nft: string;
+    typeArguments: Pool.Types;
+    rewardInfos: {
+      index: number;
+      amount: string | number;
+      vault: string;
+      vaultCoinType: string;
+    }[];
   }
 
   /**
@@ -799,6 +818,49 @@ export class Pool extends Base {
     return txb;
   }
 
+  async collectFeeByTypeArguments(
+    options: Pool.CollectFeeByTypeArgumentsOptions,
+  ): Promise<Transaction> {
+    const {
+      pool,
+      nft,
+      address,
+      collectAmountA: amountAMax,
+      collectAmountB: amountBMax,
+      typeArguments,
+    } = options;
+    const txb = options.txb || new Transaction();
+
+    if (Number(amountAMax) === 0 && Number(amountBMax) === 0) {
+      return txb;
+    }
+
+    const contract = await this.contract.getConfig();
+
+    txb.moveCall({
+      target: `${contract.PackageId}::position_manager::collect`,
+      typeArguments: typeArguments,
+      arguments: [
+        txb.object(pool),
+        txb.object(contract.Positions),
+        txb.object(nft),
+        // amount_a_max
+        txb.pure.u64(amountAMax),
+        // amount_a_max
+        txb.pure.u64(amountBMax),
+        //recipient
+        txb.pure.address(address),
+        // deadline
+        txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
+        // clock
+        txb.object(SUI_CLOCK_OBJECT_ID),
+        txb.object(contract.Versioned),
+      ],
+    });
+
+    return txb;
+  }
+
   async collectReward(options: Pool.CollectRewardOptions): Promise<Transaction> {
     const { pool: poolId, nft, rewardAmounts, address } = options;
     const txb = options.txb || new Transaction();
@@ -822,6 +884,42 @@ export class Pool extends Base {
             txb.object(rewardInfo.fields.vault),
             txb.pure.u64(index),
             txb.pure.u64(rewardAmounts[index]!),
+            txb.pure.address(address),
+            txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
+            txb.object(SUI_CLOCK_OBJECT_ID),
+            txb.object(contract.Versioned),
+          ],
+        });
+      }
+    });
+
+    return txb;
+  }
+
+  async collectRewardByTypeArguments(
+    options: Pool.CollectRewardByTypeArgumentsOptions,
+  ): Promise<Transaction> {
+    const { pool: poolId, nft, address, typeArguments, rewardInfos } = options;
+    const txb = options.txb || new Transaction();
+    const contract = await this.contract.getConfig();
+
+    rewardInfos.forEach((rewardInfo) => {
+      if (
+        rewardInfo &&
+        rewardInfo.amount !== '0' &&
+        rewardInfo.amount !== 0 &&
+        !deprecatedPoolRewards(poolId, rewardInfo.index)
+      ) {
+        txb.moveCall({
+          target: `${contract.PackageId}::position_manager::collect_reward`,
+          typeArguments: [...typeArguments, rewardInfo.vaultCoinType],
+          arguments: [
+            txb.object(poolId),
+            txb.object(contract.Positions),
+            txb.object(nft),
+            txb.object(rewardInfo.vault),
+            txb.pure.u64(rewardInfo.index),
+            txb.pure.u64(rewardInfo.amount),
             txb.pure.address(address),
             txb.pure.u64(Date.now() + (options.deadline || ONE_MINUTE * 3)),
             txb.object(SUI_CLOCK_OBJECT_ID),
