@@ -39,15 +39,15 @@ export const collectRewardsQuote = (
     const poolRewardInfo = pool.reward_infos[i];
     const rewardInfo = {
       emissionsPerSecondX64: new BN(
-        poolRewardInfo ? poolRewardInfo.fields.emissions_per_second : '0',
+        poolRewardInfo ? poolRewardInfo.emissions_per_second : '0',
       ),
-      growthGlobalX64: new BN(poolRewardInfo ? poolRewardInfo.fields.growth_global : '0'),
+      growthGlobalX64: new BN(poolRewardInfo ? poolRewardInfo.growth_global : '0'),
     };
     const positionRewardInfo = {
       growthInsideCheckpoint: new BN(
-        position.reward_infos[i]?.fields.reward_growth_inside ?? '0',
+        position.reward_infos[i]?.reward_growth_inside ?? '0',
       ),
-      amountOwed: new BN(position.reward_infos[i]?.fields.amount_owed ?? '0'),
+      amountOwed: new BN(position.reward_infos[i]?.amount_owed ?? '0'),
     };
 
     // Increment the global reward growth tracker based on time elasped since the last whirlpool update.
@@ -69,8 +69,8 @@ export const collectRewardsQuote = (
     let rewardGrowthsBelowX64: BN = adjustedRewardGrowthGlobalX64;
     if (tickLowerDetail.initialized) {
       rewardGrowthsBelowX64 =
-        math.bitsToNumber(pool.tick_current_index.fields.bits) <
-        math.bitsToNumber(position.tick_lower_index.fields.bits)
+        math.bitsToNumber(pool.tick_current_index.bits) <
+        math.bitsToNumber(position.tick_lower_index.bits)
           ? math.subUnderflowU128(
               adjustedRewardGrowthGlobalX64,
               tickLowerRewardGrowthsOutsideX64,
@@ -81,8 +81,8 @@ export const collectRewardsQuote = (
     let rewardGrowthsAboveX64: BN = new BN(0);
     if (tickUpperDetail.initialized) {
       rewardGrowthsAboveX64 =
-        math.bitsToNumber(pool.tick_current_index.fields.bits) <
-        math.bitsToNumber(position.tick_upper_index.fields.bits)
+        math.bitsToNumber(pool.tick_current_index.bits) <
+        math.bitsToNumber(position.tick_upper_index.bits)
           ? tickUpperRewardGrowthsOutsideX64
           : math.subUnderflowU128(
               adjustedRewardGrowthGlobalX64,
@@ -98,7 +98,7 @@ export const collectRewardsQuote = (
     // Knowing the growth of the reward checkpoint for the position, calculate and increment the amount owed for each reward.
     const amountOwedX64 = positionRewardInfo.amountOwed.shln(64);
 
-    rewardOwed[i] = deprecatedPoolRewards(pool.id.id, i)
+    rewardOwed[i] = deprecatedPoolRewards(pool.id, i)
       ? '0'
       : amountOwedX64
           .add(

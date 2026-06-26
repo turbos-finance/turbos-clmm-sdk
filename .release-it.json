@@ -1,4 +1,5 @@
 {
+  "$schema": "node_modules/release-it/schema/release-it.json",
   "git": {
     "push": true,
     "commitMessage": "chore: bump version v${version}",
@@ -8,7 +9,8 @@
     "release": true
   },
   "npm": {
-    "publish": true
+    "publish": true,
+    "tag": "latest"
   },
   "plugins": {
     "@release-it/conventional-changelog": {

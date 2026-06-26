@@ -1,53 +1,65 @@
-import {
-  SuiClient,
-  SuiObjectDataOptions,
-  SuiObjectResponse,
-  type PaginatedObjectsResponse,
-  type SuiObjectDataFilter,
-} from '@mysten/sui/client';
-import { getObjectFields } from '../lib/legacy';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { parseObjectFields, type CoreObjectWithContent } from '../lib/legacy';
 
+/**
+ * Batch-read objects via the core API, always with include:{ content: true }.
+ * core.getObjects returns Error elements for missing objects; we throw on the first
+ * (every caller expects the objects to exist).
+ */
 export const multiGetObjects = async (
-  provider: SuiClient,
+  provider: ClientWithCoreApi,
   ids: string[],
-  options?: SuiObjectDataOptions,
-): Promise<SuiObjectResponse[]> => {
+): Promise<CoreObjectWithContent[]> => {
   const step = 50;
   ids = [...new Set(ids)];
-  const objects: SuiObjectResponse[] = [];
+  const objects: CoreObjectWithContent[] = [];
 
   for (let i = 0; i < ids.length; i += step) {
-    const result = await provider.multiGetObjects({
-      ids: ids.slice(i, i + step),
-      options,
+    const { objects: batch } = await provider.core.getObjects({
+      objectIds: ids.slice(i, i + step),
+      include: { content: true },
     });
-    objects.push(...result);
+    for (const obj of batch) {
+      if (obj instanceof Error) {
+        throw obj;
+      }
+      objects.push(obj);
+    }
   }
 
   return objects;
 };
 
+/**
+ * Iterate all owned objects of a given type under an address and parse each
+ * Move content with the supplied schema.
+ * @param type Full struct type (replaces 1.x SuiObjectDataFilter; maps to core's type filter)
+ * @param schema BCS schema for the corresponding struct
+ */
 export async function forEacGetOwnedObjects<T>(
-  provider: SuiClient,
+  provider: ClientWithCoreApi,
   address: string,
-  filter: SuiObjectDataFilter,
+  type: string,
+  schema: { parse(bytes: Uint8Array): T },
 ): Promise<T[]> {
-  let dynamicFields: PaginatedObjectsResponse | undefined;
-  let data: T[] = [];
-  do {
-    dynamicFields = await provider.getOwnedObjects({
-      owner: address,
-      cursor: dynamicFields?.nextCursor,
-      options: { showContent: true, showType: true },
-      filter: filter,
-    });
-    if (dynamicFields) {
-      data = [
-        ...data,
-        ...(dynamicFields.data.map((item) => getObjectFields(item)) as T[]),
-      ];
+  const data: T[] = [];
+  let cursor: string | null | undefined = undefined;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const result: SuiClientTypes.ListOwnedObjectsResponse<{ content: true }> =
+      await provider.core.listOwnedObjects({
+        owner: address,
+        cursor,
+        type,
+        include: { content: true },
+      });
+    for (const obj of result.objects) {
+      data.push(parseObjectFields(obj, schema));
     }
-  } while (dynamicFields.hasNextPage);
+    cursor = result.cursor;
+    hasNextPage = result.hasNextPage;
+  }
 
   return data;
 }

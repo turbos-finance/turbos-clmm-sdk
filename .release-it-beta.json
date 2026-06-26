@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/release-it/schema/release-it.json",
+  "git": false,
+  "github": {
+    "release": false,
+    "preRelease": false
+  },
+  "npm": {
+    "publish": true,
+    "tag": "next"
+  }
+}

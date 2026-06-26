@@ -2,22 +2,21 @@
   "name": "turbos-clmm-sdk",
   "version": "3.6.4",
   "description": "Turbos finance sdk",
-  "main": "index.js",
+  "module": "dist/index.mjs",
+  "type": "module",
   "scripts": {
     "test": "vitest",
-    "release": "release-it --ci",
-    "build": "tsup",
+    "build": "tsdown",
     "prepublishOnly": "pnpm build"
   },
   "keywords": [],
   "license": "MIT",
   "sideEffects": false,
-  "types": "dist/index.d.ts",
+  "types": "dist/index.d.mts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -32,15 +31,15 @@
     "CHANGELOG.md"
   ],
   "volta": {
-    "node": "18.16.0",
-    "pnpm": "8.2.0"
+    "node": "22.22.3",
+    "pnpm": "10.33.0"
   },
-  "packageManager": "pnpm@8.2.0",
+  "packageManager": "pnpm@10.33.0",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "peerDependencies": {
-    "@mysten/sui": "^1.0.0"
+    "@mysten/sui": "^2.20.0"
   },
   "dependencies": {
     "@scure/bip39": "^1.2.1",
@@ -51,19 +50,19 @@
     "lru-cache": "^9.1.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "^17.6.3",
-    "@commitlint/config-conventional": "^17.6.3",
-    "@mysten/sui": "^1.12.0",
-    "@release-it/conventional-changelog": "^5.1.1",
-    "@types/node": "^18.16.3",
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@mysten/sui": "^2.20.0",
+    "@release-it/conventional-changelog": "^11.0.1",
+    "@types/node": "^22",
     "@vitest/coverage-c8": "^0.31.0",
-    "husky": "^8.0.3",
-    "prettier": "^2.8.8",
-    "release-it": "^15.10.3",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.4",
+    "release-it": "^20.2.1",
     "sleep-promise": "^9.1.0",
-    "ts-node": "^10.9.1",
-    "tsup": "^6.7.0",
-    "typescript": "^5.0.4",
+    "tsdown": "^0.22.3",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9",
     "vitest": "^0.31.0"
   }
 }

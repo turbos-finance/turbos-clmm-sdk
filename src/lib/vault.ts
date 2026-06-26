@@ -1,123 +1,31 @@
 import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import { Transaction, type TransactionObjectArgument } from '@mysten/sui/transactions';
+import { bcs } from '@mysten/sui/bcs';
 import { Base } from './base';
-import { validateObjectResponse } from '../utils/validate-object-response';
-import { getObjectFields } from './legacy';
+import { parseObjectFields } from './legacy';
 import BN from 'bn.js';
 import Decimal from 'decimal.js';
 import { MAX_TICK_INDEX, MIN_TICK_INDEX } from '../constants';
 import { ONE_MINUTE } from './trade';
-import { bcs } from '@mysten/sui/bcs';
-import { SuiObjectResponse } from '@mysten/sui/client';
-import { Position } from './position';
+import { Position } from './nft';
 import { forEacGetOwnedObjects, multiGetObjects } from '../utils/sui-kit';
 import { isNullObjectId } from '../utils/is-null-object-id';
+import {
+  Strategy as StrategyBcs,
+  VaultNft as VaultNftBcs,
+  LinkedTableNodeVaultInfo,
+  WithdrawEvent as WithdrawEventBcs,
+  SwapEvent as SwapEventBcs,
+  Position as PositionBcs,
+  type StrategyFields as StrategyBcsFields,
+  type VaultInfoFields as VaultInfoBcsFields,
+  type VaultNftFields,
+} from '../bcs/clmm';
 
-export declare module Vault {
-  export interface VaultStrategyField {
-    clmm_pool_id: string;
-    id: {
-      id: string;
-    };
-    coin_a_type_name: {
-      fields: {
-        name: string;
-      };
-      type: string;
-    };
-    coin_b_type_name: {
-      fields: {
-        name: string;
-      };
-      type: string;
-    };
-    effective_tick_lower: {
-      fields: {
-        bits: number;
-      };
-      type: string;
-    };
-    effective_tick_upper: {
-      fields: {
-        bits: number;
-      };
-      type: string;
-    };
-    total_share: string;
+export declare namespace Vault {
+  export interface VaultStrategyField extends StrategyBcsFields {}
 
-    vaults: {
-      fields: {
-        id: {
-          id: string;
-        };
-      };
-    };
-    accounts: {
-      fields: {
-        id: {
-          id: string;
-        };
-      };
-    };
-    default_base_rebalance_threshold: number;
-    default_limit_rebalance_threshold: number;
-    base_tick_step_minimum: number;
-    limit_tick_step_minimum: number;
-    fee_type_name: {
-      fields: {
-        name: string;
-      };
-    };
-  }
-
-  export interface VaultsIdMyStrategyVaultField {
-    name: string;
-    value: {
-      fields: {
-        value: {
-          fields: {
-            sqrt_price: string;
-            strategy_id: string;
-            vault_id: string;
-            base_liquidity: string;
-            limit_liquidity: string;
-            limit_clmm_position_id: string;
-            base_clmm_position_id: string;
-            base_lower_index: {
-              fields: {
-                bits: number;
-              };
-            };
-            base_upper_index: {
-              fields: {
-                bits: number;
-              };
-            };
-            limit_lower_index: {
-              fields: {
-                bits: number;
-              };
-            };
-            limit_upper_index: {
-              fields: {
-                bits: number;
-              };
-            };
-            coin_a_type_name: {
-              fields: {
-                name: string;
-              };
-            };
-            coin_b_type_name: {
-              fields: {
-                name: string;
-              };
-            };
-          };
-        };
-      };
-    };
-  }
+  export interface VaultInfoFields extends VaultInfoBcsFields {}
 
   export interface CreateAndDepositVaultArguments {
     txb?: Transaction;
@@ -137,31 +45,29 @@ export declare module Vault {
     limitTickStep: number;
   }
 
-  export interface CreateVaultArguments
-    extends Pick<
-      Vault.CreateAndDepositVaultArguments,
-      | 'strategyId'
-      | 'txb'
-      | 'address'
-      | 'baseLowerIndex'
-      | 'baseUpperIndex'
-      | 'limitLowerIndex'
-      | 'limitUpperIndex'
-    > {}
+  export interface CreateVaultArguments extends Pick<
+    Vault.CreateAndDepositVaultArguments,
+    | 'strategyId'
+    | 'txb'
+    | 'address'
+    | 'baseLowerIndex'
+    | 'baseUpperIndex'
+    | 'limitLowerIndex'
+    | 'limitUpperIndex'
+  > {}
 
-  export interface DepositVaultArguments
-    extends Pick<
-      Vault.CreateAndDepositVaultArguments,
-      | 'strategyId'
-      | 'txb'
-      | 'address'
-      | 'deadline'
-      | 'poolId'
-      | 'coinTypeA'
-      | 'coinTypeB'
-      | 'amountA'
-      | 'amountB'
-    > {
+  export interface DepositVaultArguments extends Pick<
+    Vault.CreateAndDepositVaultArguments,
+    | 'strategyId'
+    | 'txb'
+    | 'address'
+    | 'deadline'
+    | 'poolId'
+    | 'coinTypeA'
+    | 'coinTypeB'
+    | 'amountA'
+    | 'amountB'
+  > {
     vaultId: string;
   }
 
@@ -193,22 +99,22 @@ export declare module Vault {
   }
 
   export interface withdrawAllVaultArguments
-    extends WithdrawVaultArguments,
+    extends
+      WithdrawVaultArguments,
       collectClmmRewardDirectReturnVaultArguments,
       CloseVaultArguments {}
 
-  export interface OnlyTokenSwapWithReturnOptions
-    extends Pick<
-      Vault.CreateAndDepositVaultArguments,
-      | 'coinTypeA'
-      | 'coinTypeB'
-      | 'amountA'
-      | 'amountB'
-      | 'poolId'
-      | 'address'
-      | 'txb'
-      | 'deadline'
-    > {
+  export interface OnlyTokenSwapWithReturnOptions extends Pick<
+    Vault.CreateAndDepositVaultArguments,
+    | 'coinTypeA'
+    | 'coinTypeB'
+    | 'amountA'
+    | 'amountB'
+    | 'poolId'
+    | 'address'
+    | 'txb'
+    | 'deadline'
+  > {
     liquidity: string;
     sqrt_price: string;
     lowerIndex: number;
@@ -243,23 +149,7 @@ export declare module Vault {
     address: string;
   }
 
-  export interface MyVaultOwnedObjects {
-    description: string;
-    id: { id: string };
-    name: string;
-    strategy_id: string;
-    url: string;
-    coin_a_type_name: {
-      fields: {
-        name: string;
-      };
-    };
-    coin_b_type_name: {
-      fields: {
-        name: string;
-      };
-    };
-  }
+  export interface MyVaultOwnedObjects extends VaultNftFields {}
 
   export interface TurbosMyVaultPosition extends Position.PositionField {
     tickLower: number;
@@ -291,20 +181,19 @@ export declare module Vault {
     base_clmm_position?: TurbosMyVaultPosition;
   }
 
-  export interface TurbosVaultAmount
-    extends Pick<
-      TurbosMyVault,
-      | 'strategyId'
-      | 'vaultId'
-      | 'base_liquidity'
-      | 'limit_liquidity'
-      | 'baseLowerTick'
-      | 'baseUpperTick'
-      | 'limitLowerTick'
-      | 'limitUpperTick'
-      | 'coinTypeA'
-      | 'coinTypeB'
-    > {
+  export interface TurbosVaultAmount extends Pick<
+    TurbosMyVault,
+    | 'strategyId'
+    | 'vaultId'
+    | 'base_liquidity'
+    | 'limit_liquidity'
+    | 'baseLowerTick'
+    | 'baseUpperTick'
+    | 'limitLowerTick'
+    | 'limitUpperTick'
+    | 'coinTypeA'
+    | 'coinTypeB'
+  > {
     address: string;
     poolSqrtPrice: string;
   }
@@ -469,10 +358,7 @@ export class Vault extends Base {
         txb.pure.bool(limitUpperIndex < 0),
         txb.pure.address(address),
       ],
-      typeArguments: [
-        fields.coin_a_type_name.fields.name,
-        fields.coin_b_type_name.fields.name,
-      ],
+      typeArguments: [fields.coin_a_type_name.name, fields.coin_b_type_name.name],
     });
 
     return txb;
@@ -492,18 +378,11 @@ export class Vault extends Base {
       return txb;
     } else if (options.amountB === '0' || options.amountA === '0') {
       const strategyFields = await this.getStrategy(strategyId);
-      const vaultFields = await this.getStrategyVault(
-        strategyFields.vaults.fields.id.id,
-        vaultId,
-      );
+      const vaultFields = await this.getStrategyVault(strategyFields.vaults.id, vaultId);
       const poolFields = await this.pool.getPool(poolId);
 
-      const baseLowerIndex = this.math.bitsToNumber(
-        vaultFields.value.fields.value.fields.base_lower_index.fields.bits,
-      );
-      const baseUpperIndex = this.math.bitsToNumber(
-        vaultFields.value.fields.value.fields.base_upper_index.fields.bits,
-      );
+      const baseLowerIndex = this.math.bitsToNumber(vaultFields.base_lower_index.bits);
+      const baseUpperIndex = this.math.bitsToNumber(vaultFields.base_upper_index.bits);
 
       const swapWithReturnResult = await this.onlyTokenSwapWithReturn({
         liquidity: poolFields.liquidity,
@@ -565,7 +444,6 @@ export class Vault extends Base {
         _sendCoinA!,
         _sendCoinB!,
         txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
         txb.object(contract.Versioned),
       ],
       typeArguments: typeArguments,
@@ -601,7 +479,6 @@ export class Vault extends Base {
         txb.pure.bool(percentage === 1000000),
         txb.pure.address(address),
         txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
         txb.object(contract.Versioned),
       ],
       typeArguments: typeArguments,
@@ -629,14 +506,13 @@ export class Vault extends Base {
           txb.object(vaultId),
           txb.object(poolId),
           txb.object(contract.Positions),
-          txb.object(info.fields.vault), //clmm reward vault
-          txb.pure.u64(index), // reward vault index
+          txb.object(info.vault),
+          txb.pure.u64(index),
           txb.pure.address(address),
           txb.object(SUI_CLOCK_OBJECT_ID),
-          // versioned
           txb.object(contract.Versioned),
         ],
-        typeArguments: [...typeArguments, info.fields.vault_coin_type],
+        typeArguments: [...typeArguments, info.vault_coin_type],
       });
     });
 
@@ -657,10 +533,7 @@ export class Vault extends Base {
         txb.object(strategyId),
         txb.object(vaultId),
       ],
-      typeArguments: [
-        fields.coin_a_type_name.fields.name,
-        fields.coin_b_type_name.fields.name,
-      ],
+      typeArguments: [fields.coin_a_type_name.name, fields.coin_b_type_name.name],
     });
 
     return txb;
@@ -695,30 +568,33 @@ export class Vault extends Base {
         txb.pure.u64(percentage),
         txb.pure.bool(percentage === 1000000),
         txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
         txb.object(contract.Versioned),
       ],
       typeArguments: typeArguments,
     });
 
-    const result = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
+    txb.setSender(address);
+    const result = await this.provider.core.simulateTransaction({
+      transaction: txb,
+      checksEnabled: false,
+      include: { events: true },
     });
 
-    if (result.error) {
-      throw new Error(result.error);
+    if (result.$kind === 'FailedTransaction') {
+      throw new Error('vault withdraw simulation failed');
     }
 
     let amountA: string | undefined;
     let amountB: string | undefined;
-    result.events.map((event) => {
-      const eventResult = event.parsedJson as Vault.VaultWithdrawEvents;
-      if (eventResult.percentage) {
-        amountA = eventResult.amount_a;
-        amountB = eventResult.amount_b;
+    for (const event of result.Transaction.events ?? []) {
+      if (event.eventType.includes('::vault::WithdrawEvent')) {
+        const decoded = WithdrawEventBcs.parse(event.bcs);
+        if (decoded.percentage) {
+          amountA = decoded.amount_a.toString();
+          amountB = decoded.amount_b.toString();
+        }
       }
-    });
+    }
 
     if (!amountA || !amountB) {
       throw new Error('event does not exist');
@@ -761,18 +637,31 @@ export class Vault extends Base {
       address,
     );
 
-    const finalSwapResult = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
+    txb.setSender(address);
+    const finalResult = await this.provider.core.simulateTransaction({
+      transaction: txb,
+      checksEnabled: false,
+      include: { events: true },
     });
 
+    if (finalResult.$kind === 'FailedTransaction') {
+      throw new Error('vault swap simulation failed');
+    }
+
     let jsonResult: Vault.EventParseJson | undefined;
-    finalSwapResult.events.map((event) => {
-      const eventResult = event.parsedJson as Vault.EventParseJson;
-      if (eventResult.a_to_b !== undefined) {
-        jsonResult = eventResult;
+    for (const event of finalResult.Transaction.events ?? []) {
+      if (event.eventType.includes('::pool::SwapEvent')) {
+        const decoded = SwapEventBcs.parse(event.bcs);
+        jsonResult = {
+          a_to_b: decoded.a_to_b,
+          amount_a: decoded.amount_a.toString(),
+          amount_b: decoded.amount_b.toString(),
+          tick_current_index: { bits: decoded.tick_current_index.bits },
+          tick_pre_index: { bits: decoded.tick_pre_index.bits },
+        };
+        break;
       }
-    });
+    }
 
     if (!jsonResult) {
       throw new Error('event does not exist');
@@ -916,7 +805,6 @@ export class Vault extends Base {
         txb.pure.u64(percentage),
         txb.pure.bool(percentage === 1000000),
         txb.object(SUI_CLOCK_OBJECT_ID),
-        // versioned
         txb.object(contract.Versioned),
       ],
       typeArguments: typeArguments,
@@ -962,33 +850,31 @@ export class Vault extends Base {
     return this.getCacheOrSet(
       `strategy-${strategyId}`,
       async () => {
-        const result = await this.provider.getObject({
-          id: strategyId,
-          options: { showContent: true },
+        const { object } = await this.provider.core.getObject({
+          objectId: strategyId,
+          include: { content: true },
         });
-        validateObjectResponse(result, 'strategyId');
-        return getObjectFields(result) as unknown as Vault.VaultStrategyField;
+        return parseObjectFields(object, StrategyBcs);
       },
       1500,
     );
   }
 
   protected async getStrategyVault(
-    vaultId: string,
-    vaultValue: string,
-  ): Promise<Vault.VaultsIdMyStrategyVaultField> {
+    tableId: string,
+    vaultNftId: string,
+  ): Promise<Vault.VaultInfoFields> {
     return this.getCacheOrSet(
-      `vaultId-${vaultId}-${vaultValue}`,
+      `vaultId-${tableId}-${vaultNftId}`,
       async () => {
-        const result = await this.provider.getDynamicFieldObject({
-          parentId: vaultId,
+        const { dynamicField } = await this.provider.core.getDynamicField({
+          parentId: tableId,
           name: {
             type: '0x2::object::ID',
-            value: vaultValue,
+            bcs: bcs.Address.serialize(vaultNftId).toBytes(),
           },
         });
-        validateObjectResponse(result, 'vaultId-value');
-        return getObjectFields(result) as unknown as Vault.VaultsIdMyStrategyVaultField;
+        return LinkedTableNodeVaultInfo.parse(dynamicField.value.bcs).value;
       },
       1500,
     );
@@ -1015,7 +901,7 @@ export class Vault extends Base {
   async getVaultBalanceAmount(
     options: Vault.VaultBalanceAmountOptions,
   ): Promise<[string, string]> {
-    const { strategyId, vaultId, coinTypeA, coinTypeB, address } = options;
+    const { strategyId, vaultId, coinTypeA, coinTypeB } = options;
     const txb = new Transaction();
     const vaultContract = await this.contract.getConfig();
     txb.moveCall({
@@ -1031,18 +917,22 @@ export class Vault extends Base {
     });
 
     try {
-      const result = await this.provider.devInspectTransactionBlock({
-        transactionBlock: txb,
-        sender: address,
+      const result = await this.provider.core.simulateTransaction({
+        transaction: txb,
+        checksEnabled: false,
+        include: { commandResults: true },
       });
 
-      if (result.error) {
+      if (result.$kind === 'FailedTransaction') {
         return ['0', '0'];
       }
 
+      const cr = result.commandResults;
+      if (!cr) return ['0', '0'];
+
       return [
-        bcs.U64.parse(Uint8Array.from(result.results![0]!.returnValues![0]![0])),
-        bcs.U64.parse(Uint8Array.from(result.results![1]!.returnValues![0]![0])),
+        bcs.U64.parse(cr[0]!.returnValues[0]!.bcs).toString(),
+        bcs.U64.parse(cr[1]!.returnValues[0]!.bcs).toString(),
       ];
     } catch (err) {
       console.log(`getVaultBalanceAmount error: ${err}`);
@@ -1053,12 +943,12 @@ export class Vault extends Base {
   async getMyVaults(address: string) {
     const vaultContract = await this.contract.getConfig();
 
-    const objects = await forEacGetOwnedObjects<Vault.MyVaultOwnedObjects>(
+    const vaultType = `${vaultContract.VaultOriginPackageId}::vault::Vault`;
+    const objects = await forEacGetOwnedObjects(
       this.provider,
       address,
-      {
-        StructType: `${vaultContract.VaultOriginPackageId}::vault::Vault`,
-      },
+      vaultType,
+      VaultNftBcs,
     );
 
     if (objects.length === 0) {
@@ -1069,76 +959,64 @@ export class Vault extends Base {
     const strategyObjects = await multiGetObjects(
       this.provider,
       Array.from(new Set(strategyIds)),
-      {
-        showContent: true,
-      },
     );
+
     const obj: Record<
       string,
       { vaultId: string; clmm_pool_id: string; accountsId: string }
     > = {};
     strategyObjects.forEach((item) => {
-      const fields = getObjectFields(item) as unknown as Vault.VaultStrategyField;
-      obj[fields.id.id] = {
-        vaultId: fields.vaults.fields.id.id,
+      const fields = parseObjectFields(item, StrategyBcs);
+      const id = item.objectId;
+      obj[id] = {
+        vaultId: fields.vaults.id,
         clmm_pool_id: fields.clmm_pool_id,
-        accountsId: fields.accounts.fields.id.id,
+        accountsId: fields.accounts.id,
       };
     });
 
-    const gets: Promise<SuiObjectResponse>[] = [];
-    objects.forEach((item) => {
-      if (obj[item.strategy_id]?.vaultId) {
-        gets.push(
-          this.provider.getDynamicFieldObject({
-            parentId: obj[item.strategy_id]!.vaultId,
-            name: {
-              type: '0x2::object::ID',
-              value: item.id.id,
-            },
-          }),
-        );
-      }
-    });
-
-    if (gets.length < 1) {
+    const filteredObjects = objects.filter((item) => obj[item.strategy_id]?.vaultId);
+    if (filteredObjects.length < 1) {
       return [];
     }
 
-    const vaultObjects = await Promise.all(gets);
+    const vaultInfos = await Promise.all(
+      filteredObjects.map((item) =>
+        this.provider.core.getDynamicField({
+          parentId: obj[item.strategy_id]!.vaultId,
+          name: {
+            type: '0x2::object::ID',
+            bcs: bcs.Address.serialize(item.id).toBytes(),
+          },
+        }),
+      ),
+    );
 
-    const myVaults: Vault.TurbosMyVault[] = objects.map((item) => {
-      const res = vaultObjects.find((vault) => {
-        const fields = getObjectFields(
-          vault,
-        ) as unknown as Vault.VaultsIdMyStrategyVaultField;
-        return fields.name === item.id.id;
-      })!;
-      const fieldObject = getObjectFields(
-        res,
-      ) as unknown as Vault.VaultsIdMyStrategyVaultField;
-      const field = fieldObject.value.fields.value.fields;
+    const myVaults: Vault.TurbosMyVault[] = filteredObjects.map((item, i) => {
+      const { dynamicField } = vaultInfos[i]!;
+      const node = LinkedTableNodeVaultInfo.parse(dynamicField.value.bcs);
+      const f = node.value;
 
       return {
         accountsId: obj[item.strategy_id]!.accountsId,
-        coinTypeA: item.coin_a_type_name.fields.name,
-        coinTypeB: item.coin_b_type_name.fields.name,
+        coinTypeA: item.coin_a_type_name.name,
+        coinTypeB: item.coin_b_type_name.name,
         strategyId: item.strategy_id,
         url: item.url,
         name: item.name,
-        id: item.id.id,
-        nftId: item.id.id,
-        vaultId: field.vault_id,
-        baseLowerTick: this.math.bitsToNumber(field.base_lower_index.fields.bits),
-        baseUpperTick: this.math.bitsToNumber(field.base_upper_index.fields.bits),
-        limitLowerTick: this.math.bitsToNumber(field.limit_lower_index.fields.bits),
-        limitUpperTick: this.math.bitsToNumber(field.limit_upper_index.fields.bits),
-        sqrt_price: field.sqrt_price,
-        base_liquidity: field.base_liquidity,
-        limit_liquidity: field.limit_liquidity,
+        id: item.id,
+        nftId: item.id,
+        vaultId: f.vault_id,
+        baseLowerTick: this.math.bitsToNumber(f.base_lower_index.bits),
+        baseUpperTick: this.math.bitsToNumber(f.base_upper_index.bits),
+        limitLowerTick: this.math.bitsToNumber(f.limit_lower_index.bits),
+        limitUpperTick: this.math.bitsToNumber(f.limit_upper_index.bits),
+        sqrt_price: String(f.sqrt_price),
+        base_liquidity: String(f.base_liquidity),
+        limit_liquidity: String(f.limit_liquidity),
         clmm_pool_id: obj[item.strategy_id]!.clmm_pool_id,
-        limit_clmm_position_id: field.limit_clmm_position_id,
-        base_clmm_position_id: field.base_clmm_position_id,
+        limit_clmm_position_id: f.limit_clmm_position_id,
+        base_clmm_position_id: f.base_clmm_position_id,
       };
     });
 
@@ -1153,42 +1031,36 @@ export class Vault extends Base {
     const positionObjects = await multiGetObjects(
       this.provider,
       Array.from(new Set(vaultPositions)),
-      {
-        showContent: true,
-      },
     );
 
     positionObjects.forEach((position) => {
-      const fields = getObjectFields(position) as unknown as Position.PositionField;
+      const fields = parseObjectFields(position, PositionBcs);
+      const objectId = position.objectId;
       const myVaultPosition = {
         ...fields,
-        tickLower: this.math.bitsToNumber(fields.tick_lower_index.fields.bits),
-        tickUpper: this.math.bitsToNumber(fields.tick_upper_index.fields.bits),
-        objectId: fields.id.id,
+        tickLower: this.math.bitsToNumber(fields.tick_lower_index.bits),
+        tickUpper: this.math.bitsToNumber(fields.tick_upper_index.bits),
+        objectId,
       };
 
       let index: number | undefined;
       const myVault = myVaults.find((item, i) => {
         const isFind =
-          item.limit_clmm_position_id === fields.id.id ||
-          item.base_clmm_position_id === fields.id.id;
+          item.limit_clmm_position_id === objectId ||
+          item.base_clmm_position_id === objectId;
         if (isFind) {
           index = i;
         }
         return isFind;
       });
 
-      if (
-        myVault &&
-        index !== undefined &&
-        myVault.limit_clmm_position_id === fields.id.id
-      ) {
+      if (myVault && index !== undefined && myVault.limit_clmm_position_id === objectId) {
         myVault.limit_clmm_position = myVaultPosition;
         myVaults[index] = myVault;
       } else if (
         myVault &&
         index !== undefined &&
-        myVault.base_clmm_position_id === fields.id.id
+        myVault.base_clmm_position_id === objectId
       ) {
         myVault.base_clmm_position = myVaultPosition;
         myVaults[index] = myVault;

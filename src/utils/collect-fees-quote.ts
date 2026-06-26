@@ -24,9 +24,9 @@ export const collectFeesQuote = (
 
   let feeGrowthBelowA: BN, feeGrowthBelowB: BN, feeGrowthAboveA: BN, feeGrowthAboveB: BN;
 
-  const currentTick = math.bitsToNumber(pool.tick_current_index.fields.bits);
-  const lowerTick = math.bitsToNumber(position.tick_lower_index.fields.bits);
-  const upperTick = math.bitsToNumber(position.tick_upper_index.fields.bits);
+  const currentTick = math.bitsToNumber(pool.tick_current_index.bits);
+  const lowerTick = math.bitsToNumber(position.tick_lower_index.bits);
+  const upperTick = math.bitsToNumber(position.tick_upper_index.bits);
 
   if (currentTick < lowerTick) {
     feeGrowthBelowA = math.subUnderflowU128(

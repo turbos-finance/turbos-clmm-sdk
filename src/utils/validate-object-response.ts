@@ -1,23 +1,5 @@
-import type { SuiObjectResponse } from '@mysten/sui/client';
-import {
-  getObjectDeletedResponse,
-  getObjectId,
-  getObjectNotExistsResponse,
-} from '../lib/legacy';
-
-export const validateObjectResponse = (
-  obj: SuiObjectResponse,
-  key: string,
-): obj is { data: NonNullable<SuiObjectResponse['data']> } => {
-  const objectId = getObjectId(obj);
-
-  if (getObjectDeletedResponse(obj)) {
-    throw new Error(`${key}(${objectId}) had been deleted`);
-  }
-
-  if (getObjectNotExistsResponse(obj)) {
-    throw new Error(`${key}(${objectId}) is not found`);
-  }
-
-  return true;
-};
+/**
+ * 2.0 migration: core API throws on missing/deleted objects so this validator is a no-op.
+ * Kept for backward compatibility in case external callers import it.
+ */
+export const validateObjectResponse = (_obj: unknown, _key: string): true => true;

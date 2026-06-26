@@ -6,17 +6,21 @@ import {
 } from '@mysten/sui/transactions';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
-import { validateObjectResponse } from '../utils/validate-object-response';
 import { Base } from './base';
 import BN from 'bn.js';
-import type { DynamicFieldPage, SuiObjectResponse } from '@mysten/sui/client';
-import { getObjectFields, getObjectId, getObjectType } from './legacy';
+import { parseObjectFields, type CoreObjectWithContent } from './legacy';
+import {
+  Pool as PoolBcs,
+  PoolFactoryField,
+  FetchTicksResultEvent,
+  type PoolFields as PoolBcsFields,
+} from '../bcs/clmm';
 import * as suiKit from '../utils/sui-kit';
 import { deprecatedPoolRewards } from '../utils/deprecated-pool-rewards';
 
 const ONE_MINUTE = 60 * 1000;
 
-export declare module Pool {
+export declare namespace Pool {
   export interface MintParams {
     /**
      * Pool ID
@@ -57,9 +61,7 @@ export declare module Pool {
   }
 
   export interface AddLiquidityOptions
-    extends MintParams,
-      LiquidityParams,
-      CoinObjectArguments {}
+    extends MintParams, LiquidityParams, CoinObjectArguments {}
 
   export interface AddLiquidityByAmountObjectOptions extends AddLiquidityOptions {
     amountAObject?: TransactionObjectArgument;
@@ -73,8 +75,7 @@ export declare module Pool {
     nft: string;
   }
 
-  export interface IncreaseLiquidityByAmountObjectOptions
-    extends IncreaseLiquidityOptions {
+  export interface IncreaseLiquidityByAmountObjectOptions extends IncreaseLiquidityOptions {
     amountAObject?: TransactionObjectArgument;
     amountBObject?: TransactionObjectArgument;
   }
@@ -88,12 +89,12 @@ export declare module Pool {
   }
 
   export interface RemoveLiquidityOptions
-    extends DecreaseLiquidityOptions,
-      CollectFeeOptions,
-      CollectRewardOptions {}
+    extends DecreaseLiquidityOptions, CollectFeeOptions, CollectRewardOptions {}
 
-  export interface CollectFeeOptions
-    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
+  export interface CollectFeeOptions extends Pick<
+    Pool.MintParams,
+    'pool' | 'txb' | 'address' | 'deadline'
+  > {
     /**
      * NFT ID
      */
@@ -102,8 +103,10 @@ export declare module Pool {
     collectAmountB: string | number;
   }
 
-  export interface CollectRewardOptions
-    extends Pick<Pool.MintParams, 'pool' | 'txb' | 'address' | 'deadline'> {
+  export interface CollectRewardOptions extends Pick<
+    Pool.MintParams,
+    'pool' | 'txb' | 'address' | 'deadline'
+  > {
     /**
      * NFT ID
      */
@@ -111,51 +114,7 @@ export declare module Pool {
     rewardAmounts: (string | number)[];
   }
 
-  /**
-   * Pool fields from `provider.getObject()` while turning on `showContent` option.
-   */
-  export interface PoolFields {
-    coin_a: string;
-    coin_b: string;
-    deploy_time_ms: string;
-    fee: number;
-    fee_growth_global_a: string;
-    fee_growth_global_b: string;
-    fee_protocol: number;
-    id: { id: string };
-    liquidity: string;
-    max_liquidity_per_tick: string;
-    protocol_fees_a: string;
-    protocol_fees_b: string;
-    reward_infos: {
-      type: string;
-      fields: {
-        emissions_per_second: string;
-        growth_global: string;
-        id: {
-          id: string;
-        };
-        manager: string;
-        vault: string;
-        vault_coin_type: string;
-      };
-    }[];
-    reward_last_updated_time_ms: string;
-    sqrt_price: string;
-    tick_current_index: {
-      type: string;
-      fields: { bits: number };
-    };
-    tick_map: {
-      type: string;
-      fields: {
-        id: { id: string };
-        size: string;
-      };
-    };
-    tick_spacing: number;
-    unlocked: boolean;
-  }
+  export interface PoolFields extends PoolBcsFields {}
 
   export type Types = [string, string, string];
 
@@ -174,40 +133,28 @@ export class Pool extends Base {
   async getPools(withLocked: boolean = false): Promise<Pool.Pool[]> {
     const contract = await this.contract.getConfig();
     const poolFactoryIds: string[] = [];
-    let poolFactories!: DynamicFieldPage;
-    do {
-      poolFactories = await this.provider.getDynamicFields({
+    let cursor: string | null | undefined = undefined;
+    let hasNextPage = true;
+    while (hasNextPage) {
+      const page = await this.provider.core.listDynamicFields({
         parentId: contract.PoolTableId,
-        cursor: poolFactories?.nextCursor,
+        cursor,
       });
-      poolFactoryIds.push(...poolFactories.data.map((factory) => factory.objectId));
-    } while (poolFactories.hasNextPage);
+      poolFactoryIds.push(...page.dynamicFields.map((factory) => factory.fieldId));
+      cursor = page.cursor;
+      hasNextPage = page.hasNextPage;
+    }
 
     if (!poolFactoryIds.length) return [];
-    const poolFactoryInfos = await suiKit.multiGetObjects(this.provider, poolFactoryIds, {
-      showContent: true,
-    });
-    const poolIds = poolFactoryInfos.map((info) => {
-      const fields = getObjectFields(info) as {
-        value: {
-          fields: {
-            pool_id: string;
-            pool_key: string;
-          };
-        };
-      };
-      return fields.value.fields.pool_id;
-    });
+    const poolFactoryInfos = await suiKit.multiGetObjects(this.provider, poolFactoryIds);
+    const poolIds = poolFactoryInfos.map(
+      (info) => parseObjectFields(info, PoolFactoryField).value.pool_id,
+    );
 
     if (!poolIds.length) return [];
-    let pools = await suiKit.multiGetObjects(this.provider, poolIds, {
-      showContent: true,
-    });
+    let pools = await suiKit.multiGetObjects(this.provider, poolIds);
     if (!withLocked) {
-      pools = pools.filter((pool) => {
-        const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
-        return fields.unlocked;
-      });
+      pools = pools.filter((pool) => parseObjectFields(pool, PoolBcs).unlocked);
     }
 
     return pools.map((pool) => this.parsePool(pool));
@@ -217,12 +164,11 @@ export class Pool extends Base {
     return this.getCacheOrSet(
       `pool-${poolId}`,
       async () => {
-        const result = await this.provider.getObject({
-          id: poolId,
-          options: { showContent: true },
+        const { object } = await this.provider.core.getObject({
+          objectId: poolId,
+          include: { content: true },
         });
-        validateObjectResponse(result, 'pool');
-        return this.parsePool(result);
+        return this.parsePool(object);
       },
       1500,
     );
@@ -382,14 +328,14 @@ export class Pool extends Base {
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
       : coinIdsA.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-      : [this.coin.zero(coinTypeA, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
       : coinIdsB.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-      : [this.coin.zero(coinTypeB, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -467,14 +413,14 @@ export class Pool extends Base {
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
       : coinIdsA.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-      : [this.coin.zero(coinTypeA, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
       : coinIdsB.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-      : [this.coin.zero(coinTypeB, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -536,14 +482,14 @@ export class Pool extends Base {
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
       : coinIdsA.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-      : [this.coin.zero(coinTypeA, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
       : coinIdsB.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-      : [this.coin.zero(coinTypeB, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
@@ -608,14 +554,14 @@ export class Pool extends Base {
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
       : coinIdsA.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-      : [this.coin.zero(coinTypeA, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
+        : [this.coin.zero(coinTypeA, txb)];
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
       : coinIdsB.length > 0
-      ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-      : [this.coin.zero(coinTypeB, txb)];
+        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
+        : [this.coin.zero(coinTypeB, txb)];
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
@@ -736,7 +682,7 @@ export class Pool extends Base {
     let txb = await this.decreaseLiquidity(options);
     txb = await this.collectFee({ txb, ...options });
     txb = await this.collectReward({ txb, ...options });
-    txb = await this.nft.burn({ txb, nft: options.nft, pool: options.pool });
+    txb = await this.position.burn({ txb, nft: options.nft, pool: options.pool });
 
     return txb;
   }
@@ -749,7 +695,7 @@ export class Pool extends Base {
     let { txb, coinA, coinB } = await this.decreaseLiquidityWithReturn(options);
     txb = await this.collectFee({ txb, ...options });
     txb = await this.collectReward({ txb, ...options });
-    txb = await this.nft.burn({ txb, nft: options.nft, pool: options.pool });
+    txb = await this.position.burn({ txb, nft: options.nft, pool: options.pool });
 
     return {
       txb,
@@ -810,16 +756,16 @@ export class Pool extends Base {
       if (
         rewardAmounts[index] !== '0' &&
         rewardAmounts[index] !== 0 &&
-        !deprecatedPoolRewards(pool.id.id, index)
+        !deprecatedPoolRewards(pool.id, index)
       ) {
         txb.moveCall({
           target: `${contract.PackageId}::position_manager::collect_reward`,
-          typeArguments: [...typeArguments, rewardInfo.fields.vault_coin_type],
+          typeArguments: [...typeArguments, rewardInfo.vault_coin_type],
           arguments: [
             txb.object(poolId),
             txb.object(contract.Positions),
             txb.object(nft),
-            txb.object(rewardInfo.fields.vault),
+            txb.object(rewardInfo.vault),
             txb.pure.u64(index),
             txb.pure.u64(rewardAmounts[index]!),
             txb.pure.address(address),
@@ -952,6 +898,7 @@ export class Pool extends Base {
     while (true) {
       const tx = new Transaction();
       tx.moveCall({
+        //target: `0xd02012c71c1a6a221e540c36c37c81e0224907fe1ee05bfe250025654ff17103::pool_fetcher::fetch_ticks`,
         target: `${contract.PackageId}::pool_fetcher::fetch_ticks`,
         typeArguments: typeArguments,
         arguments: [
@@ -963,57 +910,55 @@ export class Pool extends Base {
         ],
       });
 
-      const result = await this.provider.devInspectTransactionBlock({
-        transactionBlock: tx,
-        sender: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      tx.setSender('0x0000000000000000000000000000000000000000000000000000000000000000');
+      const result = await this.provider.core.simulateTransaction({
+        transaction: tx,
+        checksEnabled: false,
+        include: { events: true },
       });
 
-      if (result.error) {
-        throw new Error(`Get pool ${poolId} ticks with error: ${result.error}`);
+      if (result.$kind === 'FailedTransaction') {
+        throw new Error(`Get pool ${poolId} ticks with error: simulation failed`);
       }
 
-      const eventData = result.events[0]!.parsedJson as {
-        ticks: {
-          id: string;
-          tick_index: { bits: number };
-          liquidity_gross: string;
-          liquidity_net: { bits: string };
-          fee_growth_outside_a: string;
-          fee_growth_outside_b: string;
-          reward_growths_outside: [string, string, string];
-          initialized: boolean;
-        }[];
-        next_cursor: null | {
-          type: string;
-          fields: { bits: number };
-        };
-      };
+      const events = result.Transaction.events ?? [];
+      const evt = events.find((e) =>
+        e.eventType.includes('::pool_fetcher::FetchTicksResultEvent'),
+      );
+      if (!evt) {
+        throw new Error(`Get pool ${poolId} ticks: FetchTicksResultEvent missing`);
+      }
+      const eventData = FetchTicksResultEvent.parse(evt.bcs);
 
       for (const tick of eventData.ticks) {
         ticks.push({
           id: tick.id,
           tick_index: this.math.bitsToNumber(tick.tick_index.bits),
           initialized: tick.initialized,
-          liquidity_net: this.math.bitsToNumber(tick.liquidity_net.bits, 128).toString(),
-          liquidity_gross: tick.liquidity_gross,
-          fee_growth_outside_a: tick.fee_growth_outside_a,
-          fee_growth_outside_b: tick.fee_growth_outside_b,
-          reward_growths_outside: tick.reward_growths_outside,
+          liquidity_net: this.math
+            .bitsToNumber(tick.liquidity_net.bits.toString(), 128)
+            .toString(),
+          liquidity_gross: tick.liquidity_gross.toString(),
+          fee_growth_outside_a: tick.fee_growth_outside_a.toString(),
+          fee_growth_outside_b: tick.fee_growth_outside_b.toString(),
+          reward_growths_outside: tick.reward_growths_outside.map((v) =>
+            v.toString(),
+          ) as [string, string, string],
         });
       }
 
       if (!eventData.next_cursor) break;
-      start = [this.math.bitsToNumber(eventData.next_cursor.fields.bits)];
+      start = [this.math.bitsToNumber(eventData.next_cursor.bits)];
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     return ticks;
   }
 
-  parsePool(pool: SuiObjectResponse): Pool.Pool {
-    const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
-    const objectId = getObjectId(pool);
-    const type = getObjectType(pool)!;
+  parsePool(pool: CoreObjectWithContent): Pool.Pool {
+    const fields = parseObjectFields(pool, PoolBcs);
+    const objectId = pool.objectId;
+    const type = pool.type;
     const types = this.parsePoolType(type, 3);
     this.getCacheOrSet('pool-type-' + objectId, async () => types);
 
