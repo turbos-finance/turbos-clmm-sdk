@@ -1,21 +1,19 @@
 {
   "$schema": "node_modules/release-it/schema/release-it.json",
-  "git": {
-    "push": true,
-    "commitMessage": "chore: bump version v${version}",
-    "requireBranch": "main"
-  },
+  "git": false,
   "github": {
-    "release": true
+    "release": false,
+    "preRelease": false
   },
   "npm": {
     "publish": true,
-    "tag": "latest"
+    "tag": "next"
   },
   "plugins": {
     "@release-it/conventional-changelog": {
       "preset": "angular",
-      "infile": "CHANGELOG.md"
+      "infile": "CHANGELOG.md",
+      "header": "# Changelog"
     }
   }
 }

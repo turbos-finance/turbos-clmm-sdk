@@ -3,7 +3,7 @@ import type { Keypair } from '@mysten/sui/cryptography';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
 
-export declare module Account {
+export declare namespace Account {
   export interface DerivePathOptions {
     accountIndex?: number;
     isExternal?: boolean;

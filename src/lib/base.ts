@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { TurbosSdk } from '../sdk';
 
 export class Base {
@@ -25,7 +26,7 @@ export class Base {
     return result;
   }
 
-  protected get provider() {
+  protected get provider(): ClientWithCoreApi {
     return this.sdk.provider;
   }
 
@@ -43,13 +44,6 @@ export class Base {
 
   protected get contract() {
     return this.sdk.contract;
-  }
-
-  /**
-   * @deprecated use position instead
-   */
-  protected get nft() {
-    return this.sdk.nft;
   }
 
   protected get position() {

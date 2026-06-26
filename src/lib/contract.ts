@@ -1,9 +1,10 @@
 /// <reference lib="dom" />
 import { Network } from '../constants';
 import { Base } from './base';
-import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
+import { parseObjectFields } from './legacy';
 import * as suiKit from '../utils/sui-kit';
-export declare module Contract {
+import { Fee as FeeBcs } from '../bcs/clmm';
+export declare namespace Contract {
   export interface Fee {
     fee: number;
     objectId: string;
@@ -39,13 +40,11 @@ export class Contract extends Base {
     return this.getCacheOrSet('fees', async () => {
       const contractJSON = await this.fetchJSON();
       const fees = contractJSON[this.network].fee;
-      const objs = await suiKit.multiGetObjects(this.provider, Object.values(fees), {
-        showContent: true,
-      });
+      const objs = await suiKit.multiGetObjects(this.provider, Object.values(fees));
       return objs.map((obj) => {
-        const fields = getObjectFields(obj) as { fee: number; tick_spacing: number };
-        const objectId = getObjectId(obj);
-        const type = getMoveObjectType(obj)!;
+        const fields = parseObjectFields(obj, FeeBcs);
+        const objectId = obj.objectId;
+        const type = obj.type;
         return {
           objectId,
           type: type.split('<')[1]!.slice(0, -1),
