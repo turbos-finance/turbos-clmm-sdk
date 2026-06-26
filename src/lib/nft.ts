@@ -1,9 +1,16 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { validateObjectResponse } from '../utils/validate-object-response';
+import { bcs } from '@mysten/sui/bcs';
 import { Base } from './base';
 import BN from 'bn.js';
-import { getObjectFields, getObjectOwner } from './legacy';
-import type { SuiObjectResponse } from '@mysten/sui/client';
+import { parseObjectFields, type CoreObjectWithContent } from './legacy';
+import {
+  Position as PositionBcs,
+  TurbosPositionNFT,
+  I32,
+  Tick,
+  type PositionFields as PositionBcsFields,
+  type TurbosPositionNFTFields,
+} from '../bcs/clmm';
 import Decimal from 'decimal.js';
 import { collectFeesQuote } from '../utils/collect-fees-quote';
 import { collectRewardsQuote } from '../utils/collect-rewards-quote';
@@ -12,59 +19,22 @@ import type { Pool } from './pool';
 /**
  * @deprecated use Position instead
  */
-export declare namespace NFT {
-  export interface NftField {
-    description: string;
-    id: { id: string };
-    img_url: string;
-    name: string;
-    pool_id: string;
-    position_id: string;
-  }
+export declare namespace Position {
+  export interface PositionNftField extends TurbosPositionNFTFields {}
 
-  export interface PositionField {
-    fee_growth_inside_a: string;
-    fee_growth_inside_b: string;
-    id: { id: string };
-    liquidity: string;
-    reward_infos: {
-      type: string;
-      fields: {
-        amount_owed: string;
-        reward_growth_inside: string;
-      };
-    }[];
-    tick_lower_index: {
-      type: string;
-      fields: { bits: number };
-    };
-    tick_upper_index: {
-      type: string;
-      fields: { bits: number };
-    };
-    tokens_owed_a: string;
-    tokens_owed_b: string;
-  }
+  export interface PositionField extends PositionBcsFields {}
 
   export interface PositionTickField {
-    id: { id: string };
-    name: { type: string; fields: { bits: number } };
+    id: string;
+    name: { bits: number };
     value: {
-      type: string;
-      fields: {
-        fee_growth_outside_a: string;
-        fee_growth_outside_b: string;
-        id: { id: string };
-        initialized: boolean;
-        liquidity_gross: string;
-        liquidity_net: {
-          fields: {
-            bits: string;
-          };
-          type: string;
-        };
-        reward_growths_outside: [string, string, string];
-      };
+      fee_growth_outside_a: string;
+      fee_growth_outside_b: string;
+      id: string;
+      initialized: boolean;
+      liquidity_gross: string;
+      liquidity_net: { bits: string };
+      reward_growths_outside: [string, string, string];
     };
   }
 
@@ -116,69 +86,84 @@ export declare namespace NFT {
 /**
  * @deprecated use Position instead
  */
-export class NFT extends Base {
+export class Position extends Base {
   async getOwner(nftId: string) {
     const result = await this.getObject(nftId);
-    const owner = getObjectOwner(result);
+    const owner = result.owner;
     if (!owner || typeof owner === 'string') return void 0;
     if ('ObjectOwner' in owner) return owner.ObjectOwner;
     if ('AddressOwner' in owner) return owner.AddressOwner;
     return void 0;
   }
 
-  async getFields(nftId: string): Promise<NFT.NftField> {
+  async getFields(nftId: string): Promise<Position.PositionNftField> {
     const result = await this.getObject(nftId);
-    return getObjectFields(result) as unknown as NFT.NftField;
+    return parseObjectFields(result, TurbosPositionNFT);
   }
 
-  async getPositionFields(nftId: string): Promise<NFT.PositionField> {
+  async getPositionFields(nftId: string): Promise<Position.PositionField> {
     const contract = await this.contract.getConfig();
-    const result = await this.provider.getDynamicFieldObject({
+    // Positions are attached via dof::add, so on-chain the key is wrapped in
+    // 0x2::dynamic_object_field::Wrapper<address>. The wrapped type must be used to
+    // derive the correct fieldId (Wrapper is transparent — bcs is still the inner K's bcs).
+    const { dynamicField } = await this.provider.core.getDynamicField({
       parentId: contract.Positions,
-      name: { type: 'address', value: nftId },
+      name: {
+        type: '0x2::dynamic_object_field::Wrapper<address>',
+        bcs: bcs.Address.serialize(nftId).toBytes(),
+      },
     });
-    return getObjectFields(result) as unknown as NFT.PositionField;
+    if (dynamicField.$kind !== 'DynamicObject') {
+      throw new Error(`Position for nft(${nftId}) is not found`);
+    }
+    return this.getPositionFieldsByPositionId(dynamicField.childId);
   }
 
-  async getPositionFieldsByPositionId(positionId: string): Promise<NFT.PositionField> {
-    const result = await this.provider.getObject({
-      id: positionId,
-      options: { showContent: true },
+  async getPositionFieldsByPositionId(
+    positionId: string,
+  ): Promise<Position.PositionField> {
+    const { object } = await this.provider.core.getObject({
+      objectId: positionId,
+      include: { content: true },
     });
-    validateObjectResponse(result, 'position');
-    return getObjectFields(result) as unknown as NFT.PositionField;
+    return parseObjectFields(object, PositionBcs);
   }
 
   async getPositionTick(
     pool: string,
     tickIndex:
-      | NFT.PositionField['tick_lower_index']
-      | NFT.PositionField['tick_upper_index'],
-  ): Promise<NFT.PositionTick | undefined> {
-    const response = await this.provider.getDynamicFieldObject({
-      parentId: pool,
-      name: {
-        type: tickIndex.type,
-        value: tickIndex.fields,
-      },
-    });
-    const fields = getObjectFields(response) as undefined | NFT.PositionTickField;
-    if (!fields) return;
+      | Position.PositionField['tick_lower_index']
+      | Position.PositionField['tick_upper_index'],
+  ): Promise<Position.PositionTick | undefined> {
+    const contract = await this.contract.getConfig();
+    let response;
+    try {
+      response = await this.provider.core.getDynamicField({
+        parentId: pool,
+        name: {
+          type: `${contract.PackageIdOriginal}::i32::I32`,
+          bcs: I32.serialize({ bits: tickIndex.bits }).toBytes(),
+        },
+      });
+    } catch {
+      return;
+    }
+    const tick = Tick.parse(response.dynamicField.value.bcs);
 
     return {
-      tickIndex: this.math.bitsToNumber(fields.name.fields.bits),
-      initialized: fields.value.fields.initialized,
+      tickIndex: this.math.bitsToNumber(tickIndex.bits),
+      initialized: tick.initialized,
       liquidityNet: new BN(
-        this.math
-          .bitsToNumber(fields.value.fields.liquidity_net.fields.bits, 128)
-          .toString(),
+        this.math.bitsToNumber(tick.liquidity_net.bits, 128).toString(),
       ),
-      liquidityGross: new BN(fields.value.fields.liquidity_gross),
-      feeGrowthOutsideA: new BN(fields.value.fields.fee_growth_outside_a),
-      feeGrowthOutsideB: new BN(fields.value.fields.fee_growth_outside_b),
-      rewardGrowthsOutside: fields.value.fields.reward_growths_outside.map(
-        (val) => new BN(val),
-      ) as [BN, BN, BN],
+      liquidityGross: new BN(tick.liquidity_gross),
+      feeGrowthOutsideA: new BN(tick.fee_growth_outside_a),
+      feeGrowthOutsideB: new BN(tick.fee_growth_outside_b),
+      rewardGrowthsOutside: tick.reward_growths_outside.map((val) => new BN(val)) as [
+        BN,
+        BN,
+        BN,
+      ],
     };
   }
 
@@ -192,7 +177,7 @@ export class NFT extends Base {
   }): Promise<{ fees: string; total: string; rewards: string }> {
     const { poolId, getPrice, fees24h, tickLower, tickUpper, liquidity } = opts;
     const pool = await this.pool.getPool(poolId);
-    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.fields.bits);
+    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.bits);
     const [coinA, coinB, priceA, priceB] = await Promise.all([
       this.coin.getMetadata(pool.types[0]),
       this.coin.getMetadata(pool.types[1]),
@@ -233,8 +218,8 @@ export class NFT extends Base {
 
     await Promise.all(
       pool.reward_infos.map(async (reward) => {
-        const { emissions_per_second } = reward.fields;
-        const coinType = this.coin.formatCoinType(reward.fields.vault_coin_type);
+        const { emissions_per_second } = reward;
+        const coinType = this.coin.formatCoinType(reward.vault_coin_type);
         const [price, coin] = await Promise.all([
           getPrice(coinType),
           this.coin.getMetadata(coinType),
@@ -266,7 +251,7 @@ export class NFT extends Base {
   ): { minTokenA: BN; minTokenB: BN } {
     const ZERO = new BN(0);
     const liquidity = new BN(pool.liquidity);
-    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.fields.bits);
+    const tickCurrent = this.math.bitsToNumber(pool.tick_current_index.bits);
     const sqrtPriceLowerX64 = this.math.tickIndexToSqrtPriceX64(tickLower);
     const sqrtPriceUpperX64 = this.math.tickIndexToSqrtPriceX64(tickUpper);
 
@@ -333,7 +318,7 @@ export class NFT extends Base {
     return liquidity.mul(sqrtPriceUpperX64.sub(sqrtPriceLowerX64)).shrn(64);
   }
 
-  async burn(options: NFT.BurnOptions): Promise<Transaction> {
+  async burn(options: Position.BurnOptions): Promise<Transaction> {
     const { pool, nft } = options;
     const txb = options.txb || new Transaction();
     const contract = await this.contract.getConfig();
@@ -354,7 +339,7 @@ export class NFT extends Base {
 
   async getPositionLiquidityUSD(options: {
     poolId: string;
-    position: NFT.PositionField;
+    position: Position.PositionField;
     priceA: string | number | undefined;
     priceB: string | number | undefined;
   }) {
@@ -363,10 +348,10 @@ export class NFT extends Base {
     const amount = this.pool.getTokenAmountsFromLiquidity({
       currentSqrtPrice: new BN(pool.sqrt_price),
       lowerSqrtPrice: this.math.tickIndexToSqrtPriceX64(
-        this.math.bitsToNumber(position.tick_lower_index.fields.bits),
+        this.math.bitsToNumber(position.tick_lower_index.bits),
       ),
       upperSqrtPrice: this.math.tickIndexToSqrtPriceX64(
-        this.math.bitsToNumber(position.tick_upper_index.fields.bits),
+        this.math.bitsToNumber(position.tick_upper_index.bits),
       ),
       liquidity: new BN(
         position.liquidity === undefined ? 100_000_000 : position.liquidity,
@@ -389,14 +374,14 @@ export class NFT extends Base {
 
   async getUnclaimedFeesAndRewards(options: {
     poolId: string;
-    position: NFT.PositionField;
+    position: Position.PositionField;
     getPrice(coinType: string): Promise<string | number | undefined>;
-  }): Promise<NFT.UnclaimedFeesAndRewardsResult> {
+  }): Promise<Position.UnclaimedFeesAndRewardsResult> {
     const { position, poolId } = options;
     const [pool, tickLowerDetail, tickUpperDetail] = await Promise.all([
       this.pool.getPool(poolId),
-      this.nft.getPositionTick(poolId, position.tick_lower_index),
-      this.nft.getPositionTick(poolId, position.tick_upper_index),
+      this.getPositionTick(poolId, position.tick_lower_index),
+      this.getPositionTick(poolId, position.tick_upper_index),
     ]);
     const opts = {
       ...options,
@@ -425,14 +410,14 @@ export class NFT extends Base {
 
   async getUnclaimedFees(options: {
     pool: Pool.Pool;
-    position: NFT.PositionField;
+    position: Position.PositionField;
     /**
      * Returning field `unclaimedFees` is based on price
      */
     getPrice?(coinType: string): Promise<string | number | undefined>;
-    tickLowerDetail: NFT.PositionTick;
-    tickUpperDetail: NFT.PositionTick;
-  }): Promise<NFT.UnclaimedFeesResult> {
+    tickLowerDetail: Position.PositionTick;
+    tickUpperDetail: Position.PositionTick;
+  }): Promise<Position.UnclaimedFeesResult> {
     const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
     const [coinA, coinB, priceA, priceB] = await Promise.all([
       this.coin.getMetadata(pool.types[0]),
@@ -478,14 +463,14 @@ export class NFT extends Base {
 
   async getUnclaimedRewards(options: {
     pool: Pool.Pool;
-    position: NFT.PositionField;
+    position: Position.PositionField;
     /**
      * Returning field `unclaimedRewards` is based on price
      */
     getPrice?(coinType: string): Promise<string | number | undefined>;
-    tickLowerDetail: NFT.PositionTick;
-    tickUpperDetail: NFT.PositionTick;
-  }): Promise<NFT.UnclaimedRewardsResult> {
+    tickLowerDetail: Position.PositionTick;
+    tickUpperDetail: Position.PositionTick;
+  }): Promise<Position.UnclaimedRewardsResult> {
     const { position, pool, getPrice, tickLowerDetail, tickUpperDetail } = options;
 
     const collectRewards = collectRewardsQuote(this.math, {
@@ -496,7 +481,7 @@ export class NFT extends Base {
     });
     const scaledCollectRewards = [...collectRewards] as typeof collectRewards;
     const coinTypes = pool.reward_infos.map((reward) =>
-      this.coin.formatCoinType(reward.fields.vault_coin_type),
+      this.coin.formatCoinType(reward.vault_coin_type),
     );
     const coins = await Promise.all([
       ...pool.reward_infos.map((_, index) => {
@@ -535,14 +520,13 @@ export class NFT extends Base {
     };
   }
 
-  protected getObject(nftId: string): Promise<SuiObjectResponse> {
+  protected getObject(nftId: string): Promise<CoreObjectWithContent> {
     return this.getCacheOrSet('nft-object-' + nftId, async () => {
-      const result = await this.provider.getObject({
-        id: nftId,
-        options: { showContent: true, showOwner: true },
+      const { object } = await this.provider.core.getObject({
+        objectId: nftId,
+        include: { content: true },
       });
-      validateObjectResponse(result, 'nft');
-      return result;
+      return object;
     });
   }
 }

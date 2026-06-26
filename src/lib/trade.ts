@@ -11,12 +11,13 @@ import {
 } from '../constants';
 import { BN } from 'bn.js';
 import * as suiKit from '../utils/sui-kit';
-import { getMoveObjectType, getObjectFields, getObjectId } from './legacy';
+import { parseObjectFields } from './legacy';
+import { Pool as PoolBcs, SwapEvent as SwapEventBcs } from '../bcs/clmm';
 
 export const ONE_MINUTE = 60 * 1000;
 const MAX_TICK_STEP = 100;
 
-export declare module Trade {
+export declare namespace Trade {
   export interface SwapOptions {
     routes: {
       pool: string;
@@ -345,28 +346,26 @@ export class Trade extends Base {
     const { pools, amountSpecified, amountSpecifiedIsInput, address, tickStep } = options;
     const contract = await this.contract.getConfig();
     const poolIds = pools.map((pool) => pool.pool);
-    let poolResult = await suiKit.multiGetObjects(this.provider, poolIds, {
-      showContent: true,
-    });
+    let poolResult = await suiKit.multiGetObjects(this.provider, poolIds);
     const txb = new Transaction();
     poolResult.map(async (pool) => {
-      const fields = getObjectFields(pool) as unknown as Pool.PoolFields;
-      const _pool = pools.find((item) => item.pool === fields.id.id);
+      const fields = parseObjectFields(pool, PoolBcs);
+      const _pool = pools.find((item) => item.pool === fields.id);
 
-      const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
+      const current_tick = this.math.bitsToNumber(fields.tick_current_index.bits);
       let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);
       let max_tick = current_tick + fields.tick_spacing * (tickStep || MAX_TICK_STEP);
       min_tick = min_tick < MIN_TICK_INDEX ? MIN_TICK_INDEX : min_tick;
       max_tick = max_tick > MAX_TICK_INDEX ? MAX_TICK_INDEX : max_tick;
 
-      const types = this.pool.parsePoolType(getMoveObjectType(pool)!);
+      const types = this.pool.parsePoolType(pool.type!);
 
       txb.moveCall({
         target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
         typeArguments: types,
         arguments: [
           // pool
-          txb.object(fields.id.id),
+          txb.object(fields.id),
           // a_to_b
           txb.pure.bool(_pool!.a2b),
           // amount_specified
@@ -386,18 +385,7 @@ export class Trade extends Base {
         ],
       });
     });
-    const result = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
-    });
-
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    return result.events.map((event) => {
-      return event.parsedJson as Trade.ComputedSwapResult;
-    });
+    return this.simulateComputeSwapResult(txb, address);
   }
 
   async computeSwapResultV2(
@@ -409,31 +397,28 @@ export class Trade extends Base {
     let poolResults = await suiKit.multiGetObjects(
       this.provider,
       Array.from(new Set(poolIds)),
-      {
-        showContent: true,
-      },
     );
     const txb = new Transaction();
     pools.forEach(async (pool) => {
       const poolObject = poolResults.find(
-        (poolResult) => getObjectId(poolResult) === pool.pool,
+        (poolResult) => poolResult.objectId === pool.pool,
       )!;
-      const fields = getObjectFields(poolObject) as unknown as Pool.PoolFields;
+      const fields = parseObjectFields(poolObject, PoolBcs);
 
-      const current_tick = this.math.bitsToNumber(fields.tick_current_index.fields.bits);
+      const current_tick = this.math.bitsToNumber(fields.tick_current_index.bits);
       let min_tick = current_tick - fields.tick_spacing * (tickStep || MAX_TICK_STEP);
       let max_tick = current_tick + fields.tick_spacing * (tickStep || MAX_TICK_STEP);
       min_tick = min_tick < MIN_TICK_INDEX ? MIN_TICK_INDEX : min_tick;
       max_tick = max_tick > MAX_TICK_INDEX ? MAX_TICK_INDEX : max_tick;
 
-      const types = this.pool.parsePoolType(getMoveObjectType(poolObject)!);
+      const types = this.pool.parsePoolType(poolObject.type!);
 
       txb.moveCall({
         target: `${contract.PackageId}::pool_fetcher::compute_swap_result`,
         typeArguments: types,
         arguments: [
           // pool
-          txb.object(fields.id.id),
+          txb.object(fields.id),
           // a_to_b
           txb.pure.bool(pool.a2b),
           // amount_specified
@@ -451,18 +436,49 @@ export class Trade extends Base {
         ],
       });
     });
-    const result = await this.provider.devInspectTransactionBlock({
-      transactionBlock: txb,
-      sender: address,
+    return this.simulateComputeSwapResult(txb, address);
+  }
+
+  /**
+   * Shared helper: simulate pool_fetcher::compute_swap_result via
+   * core.simulateTransaction and decode each pool::SwapEvent BCS into a
+   * ComputedSwapResult. One moveCall yields one SwapEvent, in order.
+   */
+  protected async simulateComputeSwapResult(
+    txb: Transaction,
+    address: string,
+  ): Promise<Trade.ComputedSwapResult[]> {
+    txb.setSender(address);
+    const result = await this.provider.core.simulateTransaction({
+      transaction: txb,
+      checksEnabled: false,
+      include: { events: true },
     });
 
-    if (result.error) {
-      throw new Error(result.error);
+    if (result.$kind === 'FailedTransaction') {
+      throw new Error('computeSwapResult simulation failed');
     }
 
-    return result.events.map((event) => {
-      return event.parsedJson as Trade.ComputedSwapResult;
-    });
+    const events = result.Transaction.events ?? [];
+    return events
+      .filter((e) => e.eventType.includes('::pool::SwapEvent'))
+      .map((event) => {
+        const d = SwapEventBcs.parse(event.bcs);
+        return {
+          a_to_b: d.a_to_b,
+          amount_a: d.amount_a.toString(),
+          amount_b: d.amount_b.toString(),
+          fee_amount: d.fee_amount.toString(),
+          is_exact_in: d.is_exact_in,
+          liquidity: d.liquidity.toString(),
+          pool: d.pool,
+          protocol_fee: d.protocol_fee.toString(),
+          recipient: d.recipient,
+          sqrt_price: d.sqrt_price.toString(),
+          tick_current_index: { bits: d.tick_current_index.bits },
+          tick_pre_index: { bits: d.tick_pre_index.bits },
+        } satisfies Trade.ComputedSwapResult;
+      });
   }
 
   async swapWithReturn(options: Trade.SwapWithReturnOptions) {
@@ -511,9 +527,7 @@ export class Trade extends Base {
     );
 
     const [coinVecA, coinVecB] = txb.moveCall({
-      target: `${contract.PackageId}::swap_router::swap_${
-        a2b ? 'a_b' : 'b_a'
-      }_with_return_`,
+      target: `${contract.PackageId}::swap_router::swap_${a2b ? 'a_b' : 'b_a'}_with_return_`,
       typeArguments: typeArguments,
       arguments: [
         txb.object(poolId),

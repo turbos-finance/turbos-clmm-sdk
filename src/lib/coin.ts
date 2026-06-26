@@ -1,24 +1,30 @@
 import { type TransactionObjectArgument, Transaction } from '@mysten/sui/transactions';
-import { PaginatedCoins } from '@mysten/sui/client';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import Decimal from 'decimal.js';
 import { Base } from './base';
 import { normalizeStructTag } from '@mysten/sui/utils';
 
 export class Coin extends Base {
   isSUI(coinType: string) {
-    return (
-      normalizeStructTag(coinType) ===
-      '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
-    );
+    // 2.0's normalizeStructTag throws on invalid struct tags (1.x did not); catch and return false.
+    // Case-insensitive comparison preserves the semantics of existing tests.
+    try {
+      return (
+        normalizeStructTag(coinType).toLowerCase() ===
+        '0x0000000000000000000000000000000000000000000000000000000000000002::sui::sui'
+      );
+    } catch {
+      return false;
+    }
   }
 
   async getMetadata(coinType: string) {
     return this.getCacheOrSet(`coin-metadata-${coinType}`, async () => {
-      const result = await this.provider.getCoinMetadata({ coinType });
-      if (!result) {
+      const { coinMetadata } = await this.provider.core.getCoinMetadata({ coinType });
+      if (!coinMetadata) {
         throw new Error(`Coin "${coinType}" is not found`);
       }
-      return result;
+      return coinMetadata;
     });
   }
 
@@ -31,18 +37,18 @@ export class Coin extends Base {
       return [];
     }
 
-    const coins: PaginatedCoins['data'][number][] = [];
+    const coins: SuiClientTypes.Coin[] = [];
     const coinIds: string[] = [];
     let totalAmount = new Decimal(0);
-    let result: PaginatedCoins | undefined;
+    let result: SuiClientTypes.ListCoinsResponse | undefined;
 
     do {
-      result = await this.provider.getCoins({
+      result = await this.provider.core.listCoins({
         owner,
         coinType,
-        cursor: result?.nextCursor,
+        cursor: result?.cursor,
       });
-      coins.push(...result.data);
+      coins.push(...result.objects);
     } while (result.hasNextPage);
 
     coins.sort((a, b) => {
@@ -51,7 +57,7 @@ export class Coin extends Base {
     });
 
     for (const coin of coins) {
-      coinIds.push(coin.coinObjectId);
+      coinIds.push(coin.objectId);
       totalAmount = totalAmount.add(coin.balance);
       if (totalAmount.gte(expectedAmount)) {
         break;
