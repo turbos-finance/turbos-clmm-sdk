@@ -1,4 +1,18 @@
+# Changelog
 
+# [4.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.4...4.0.0) (2026-07-16)
+
+
+### Features
+
+* migrate to @mysten/sui 2.0 + gRPC ([65089b3](https://github.com/turbos-finance/turbos-clmm-sdk/commit/65089b3d924bd31a54afee27f69f9955f1e659e7))
+
+
+### BREAKING CHANGES
+
+* - Minimum @mysten/sui version is 2.0
+- Minimum supported node version is 22
+- Replace nft module with position
 
 ## [3.6.4](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.3...3.6.4) (2025-08-12)
 
