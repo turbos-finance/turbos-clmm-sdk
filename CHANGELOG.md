@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.1](https://github.com/turbos-finance/turbos-clmm-sdk/compare/4.0.0...4.0.1) (2026-08-06)
+
+
+### Bug Fixes
+
+* **pool:** normalize struct tag for reward vault coin type in moveCall ([cf1f81f](https://github.com/turbos-finance/turbos-clmm-sdk/commit/cf1f81fc362b16ff3152e6f70bd82826b2704cfc))
+
 # [4.0.0](https://github.com/turbos-finance/turbos-clmm-sdk/compare/3.6.4...4.0.0) (2026-07-16)
 
 
