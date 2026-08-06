@@ -1,4 +1,4 @@
-import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
+import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
 import {
   // coinWithBalance,
   Transaction,
@@ -760,7 +760,10 @@ export class Pool extends Base {
       ) {
         txb.moveCall({
           target: `${contract.PackageId}::position_manager::collect_reward`,
-          typeArguments: [...typeArguments, rewardInfo.vault_coin_type],
+          typeArguments: [
+            ...typeArguments,
+            normalizeStructTag(rewardInfo.vault_coin_type),
+          ],
           arguments: [
             txb.object(poolId),
             txb.object(contract.Positions),
