@@ -1,9 +1,5 @@
 import { normalizeStructTag, SUI_CLOCK_OBJECT_ID } from '@mysten/sui/utils';
-import {
-  // coinWithBalance,
-  Transaction,
-  type TransactionObjectArgument,
-} from '@mysten/sui/transactions';
+import { Transaction, type TransactionObjectArgument } from '@mysten/sui/transactions';
 import Decimal from 'decimal.js';
 import { Contract } from './contract';
 import { Base } from './base';
@@ -188,20 +184,20 @@ export class Pool extends Base {
     const contract = await this.contract.getConfig();
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
-    const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, amountA),
-      this.coin.selectTradeCoins(address, coinTypeB, amountB),
-    ]);
 
     const txb = options.txb || new Transaction();
-    const coinAObjects =
-      coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
-    const coinBObjects =
-      coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+    const coinAObjects = await this.coin.prepareTradeCoins(
+      txb,
+      address,
+      coinTypeA,
+      amountA,
+    );
+    const coinBObjects = await this.coin.prepareTradeCoins(
+      txb,
+      address,
+      coinTypeB,
+      amountB,
+    );
 
     txb.moveCall({
       target: `${contract.PackageId}::pool_factory::deploy_pool_and_mint`,
@@ -303,39 +299,13 @@ export class Pool extends Base {
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
 
-    // txb.setSenderIfNotSet(address);
-    // const coinAObjects = coinAObjectArguments
-    //   ? coinAObjectArguments
-    //   : [
-    //       amountA.eq(0)
-    //         ? this.coin.zero(coinTypeA, txb)
-    //         : coinWithBalance({ type: coinTypeA, balance: Number(amountA.toString()) }),
-    //     ];
-
-    // const coinBObjects = coinBObjectArguments
-    //   ? coinBObjectArguments
-    //   : [
-    //       amountB.eq(0)
-    //         ? this.coin.zero(coinTypeA, txb)
-    //         : coinWithBalance({ type: coinTypeB, balance: Number(amountB.toString()) }),
-    //     ];
-
-    const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, amountA),
-      this.coin.selectTradeCoins(address, coinTypeB, amountB),
-    ]);
-
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
-      : coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeA, amountA);
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
-      : coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeB, amountB);
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -405,22 +375,13 @@ export class Pool extends Base {
     const amountA = new Decimal(options.amountA);
     const amountB = new Decimal(options.amountB);
 
-    const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, amountA),
-      this.coin.selectTradeCoins(address, coinTypeB, amountB),
-    ]);
-
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
-      : coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeA, amountA);
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
-      : coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeB, amountB);
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::mint`,
@@ -474,22 +435,13 @@ export class Pool extends Base {
 
     const txb = options.txb || new Transaction();
 
-    const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, amountA),
-      this.coin.selectTradeCoins(address, coinTypeB, amountB),
-    ]);
-
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
-      : coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeA, amountA);
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
-      : coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeB, amountB);
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
@@ -546,22 +498,13 @@ export class Pool extends Base {
 
     const txb = options.txb || new Transaction();
 
-    const [coinIdsA, coinIdsB] = await Promise.all([
-      this.coin.selectTradeCoins(address, coinTypeA, amountA),
-      this.coin.selectTradeCoins(address, coinTypeB, amountB),
-    ]);
-
     const coinAObjects = coinAObjectArguments
       ? coinAObjectArguments
-      : coinIdsA.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsA, coinTypeA, amountA)
-        : [this.coin.zero(coinTypeA, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeA, amountA);
 
     const coinBObjects = coinBObjectArguments
       ? coinBObjectArguments
-      : coinIdsB.length > 0
-        ? this.coin.convertTradeCoins(txb, coinIdsB, coinTypeB, amountB)
-        : [this.coin.zero(coinTypeB, txb)];
+      : await this.coin.prepareTradeCoins(txb, address, coinTypeB, amountB);
 
     txb.moveCall({
       target: `${contract.PackageId}::position_manager::increase_liquidity`,
